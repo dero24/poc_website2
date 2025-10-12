@@ -4,7 +4,6 @@ import versionService from './services/versionService.js';
 import {
   PROMPT_TEMPLATES,
   buildPrompt,
-  AI_FEATURES_INJECTION,
   FALLBACK_CODE
 } from './prompts/templates.js';
 
@@ -24,10 +23,9 @@ function App() {
   const [apiKey, setApiKey] = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
-  const [templateKey, setTemplateKey] = useState('base');
+  const [templateKey] = useState('base');
   const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
-  const [includeAI, setIncludeAI] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
@@ -61,7 +59,8 @@ function App() {
       const list = await groqService.refreshModels();
       if (cancelled) return;
       setModelOptions(list);
-      if (!list.find((entry) => entry.id === modelKey) && list.length) {
+      const preferred = list.find((entry) => entry.id === modelKey);
+      if (!preferred && list.length) {
         setModelKey(list[0].id);
       }
     };
@@ -69,7 +68,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [apiKey, modelKey]);
+  }, [apiKey]);
 
   const handleApiKeySubmit = useCallback((key) => {
     const trimmed = key.trim();
@@ -79,11 +78,12 @@ function App() {
     setShowApiModal(false);
     groqService.refreshModels().then((list) => {
       setModelOptions(list);
-      if (list.length && !list.find((entry) => entry.id === modelKey)) {
+      const existing = list.find((entry) => entry.id === modelKey);
+      if (!existing && list.length) {
         setModelKey(list[0].id);
       }
     });
-  }, [modelKey]);
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     if (!appIdea.trim()) {
@@ -96,11 +96,11 @@ function App() {
       return;
     }
 
-    const template = PROMPT_TEMPLATES[templateKey];
-    const promptBase = buildPrompt(template.template, appIdea, includeAI);
-    const prompt = includeAI
-      ? `${promptBase}\n\nENSURE AI HANDLERS:\n${AI_FEATURES_INJECTION}`
-      : promptBase;
+    const template = PROMPT_TEMPLATES.base;
+    const prompt = buildPrompt(template.template, appIdea, {
+      apiKey,
+      modelId: modelKey
+    });
 
     setIsGenerating(true);
     setErrorMessage('');
@@ -111,7 +111,7 @@ function App() {
         id: Date.now().toString(),
         appIdea,
         model: modelKey,
-        template: templateKey,
+        template: 'base',
         code: generatedCode,
         prompt,
         timestamp: Date.now(),
@@ -155,7 +155,7 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [appIdea, apiKey, includeAI, modelKey, templateKey, refreshHistory]);
+  }, [appIdea, apiKey, modelKey, refreshHistory]);
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
@@ -190,16 +190,11 @@ function App() {
         ? h(AppGenerator, {
             appIdea,
             onAppIdeaChange: setAppIdea,
-            templateKey,
-            onTemplateChange: setTemplateKey,
             modelKey,
             onModelChange: setModelKey,
-            includeAI,
-            onToggleAI: () => setIncludeAI((prev) => !prev),
             isGenerating,
             onGenerate: handleGenerate,
             modelOptions,
-            templates: PROMPT_TEMPLATES,
             errorMessage,
             onUseExample: setAppIdea
           })
@@ -274,16 +269,11 @@ function Header({ activeView, setActiveView, generatedApp, onOpenSettings }) {
 function AppGenerator({
   appIdea,
   onAppIdeaChange,
-  templateKey,
-  onTemplateChange,
   modelKey,
   onModelChange,
-  includeAI,
-  onToggleAI,
   isGenerating,
   onGenerate,
   modelOptions,
-  templates,
   errorMessage,
   onUseExample
 }) {
@@ -306,32 +296,20 @@ function AppGenerator({
           className: 'w-full min-h-[150px] rounded-2xl bg-black/40 border border-white/10 px-5 py-4 text-sm md:text-base leading-relaxed text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-iris/60 focus:border-white/10 shadow-inner'
         })
       ]),
-      h('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' }, [
-        h(FormSelect, {
-          label: 'Prompt template',
-          value: templateKey,
-          onChange: onTemplateChange,
-          options: Object.entries(templates).map(([value, meta]) => ({ value, label: meta.name }))
-        }),
+      h('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' }, [
         h(FormSelect, {
           label: 'Groq model',
           value: modelKey,
           onChange: onModelChange,
-          options: (modelOptions?.length ? modelOptions : [{ id: modelKey, label: modelKey }]).map((entry) => ({ value: entry.id, label: entry.label }))
+          options: (Array.isArray(modelOptions) && modelOptions.length
+            ? modelOptions
+            : [{ id: modelKey, label: modelKey }]
+          ).map((entry) => ({ value: entry.id, label: entry.label }))
         }),
-        h('div', { className: 'space-y-3' }, [
-          h('span', { className: 'text-sm font-medium uppercase tracking-wide text-white/70 block' }, 'AI capabilities'),
-          h('button', {
-            onClick: onToggleAI,
-            className: `w-full rounded-2xl px-5 py-3 border transition-all text-sm font-medium flex items-center justify-between ${
-              includeAI
-                ? 'border-emerald-400/60 bg-emerald-400/20 text-emerald-100'
-                : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20'
-            }`
-          }, [
-            h('span', null, includeAI ? 'Enabled' : 'Disabled'),
-            h('span', null, includeAI ? '🧠' : '🌐')
-          ])
+        h('div', { className: 'space-y-2 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-sm text-white/70' }, [
+          h('h3', { className: 'text-sm font-semibold text-white' }, 'Automatic AI usage'),
+          h('p', null, 'Groq decides when to call its APIs. Generated apps automatically receive the secure GROQ_API_KEY without prompting end users.'),
+          h('p', null, 'Feel free to request any AI behaviors in your prompt—Groq has the context it needs.')
         ])
       ]),
       h('div', { className: 'space-y-2' }, [
