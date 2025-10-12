@@ -5,14 +5,18 @@ export const PROMPT_TEMPLATES = {
     template: `Create a React app: {APP_IDEA}
 
 STRICT RULES:
-- Output ONLY working React JSX code
 - Use React hooks, no class components
 - Include all imports at top
-- Use Tailwind CSS for styling
 - Make it responsive and beautiful
-- No markdown, no explanations
 - Single functional component export
-- Browser-compatible only
+- Browser-compatible
+- Output ONLY working React JSX code (no markdown or commentary).
+- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
+- Never prompt the user for API keys. The environment already supplies one.
+- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
+- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
+- Do not expose or log the API key.
+- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
 {AI_FEATURES}
 
 Return complete working code:`
@@ -122,8 +126,20 @@ export default function FallbackApp() {
 }
 `;
 
-export function buildPrompt(template, appIdea, includeAI = false) {
+export function buildPrompt(template, appIdea, options = {}) {
+  const normalized = typeof options === 'boolean'
+    ? { includeAI: options }
+    : (options ?? {});
+
+  const {
+    apiKey = '',
+    modelId = '',
+    includeAI = true
+  } = normalized;
+
   let prompt = template.replace('{APP_IDEA}', appIdea);
+  prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
+  prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
   prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
   return prompt;
 }

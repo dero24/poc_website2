@@ -24,10 +24,10 @@ function App() {
   const [apiKey, setApiKey] = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
-  const [templateKey, setTemplateKey] = useState('base');
+  const templateKey = 'base';
   const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
-  const [includeAI, setIncludeAI] = useState(false);
+  const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
@@ -97,10 +97,11 @@ function App() {
     }
 
     const template = PROMPT_TEMPLATES[templateKey];
-    const promptBase = buildPrompt(template.template, appIdea, includeAI);
-    const prompt = includeAI
-      ? `${promptBase}\n\nENSURE AI HANDLERS:\n${AI_FEATURES_INJECTION}`
-      : promptBase;
+    const prompt = buildPrompt(template.template, appIdea, {
+      apiKey,
+      modelId: modelKey,
+      includeAI
+    });
 
     setIsGenerating(true);
     setErrorMessage('');
@@ -190,16 +191,11 @@ function App() {
         ? h(AppGenerator, {
             appIdea,
             onAppIdeaChange: setAppIdea,
-            templateKey,
-            onTemplateChange: setTemplateKey,
             modelKey,
             onModelChange: setModelKey,
-            includeAI,
-            onToggleAI: () => setIncludeAI((prev) => !prev),
             isGenerating,
             onGenerate: handleGenerate,
             modelOptions,
-            templates: PROMPT_TEMPLATES,
             errorMessage,
             onUseExample: setAppIdea
           })
@@ -274,16 +270,11 @@ function Header({ activeView, setActiveView, generatedApp, onOpenSettings }) {
 function AppGenerator({
   appIdea,
   onAppIdeaChange,
-  templateKey,
-  onTemplateChange,
   modelKey,
   onModelChange,
-  includeAI,
-  onToggleAI,
   isGenerating,
   onGenerate,
   modelOptions,
-  templates,
   errorMessage,
   onUseExample
 }) {
@@ -306,32 +297,17 @@ function AppGenerator({
           className: 'w-full min-h-[150px] rounded-2xl bg-black/40 border border-white/10 px-5 py-4 text-sm md:text-base leading-relaxed text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-iris/60 focus:border-white/10 shadow-inner'
         })
       ]),
-      h('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' }, [
-        h(FormSelect, {
-          label: 'Prompt template',
-          value: templateKey,
-          onChange: onTemplateChange,
-          options: Object.entries(templates).map(([value, meta]) => ({ value, label: meta.name }))
-        }),
+      h('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' }, [
         h(FormSelect, {
           label: 'Groq model',
           value: modelKey,
           onChange: onModelChange,
           options: (modelOptions?.length ? modelOptions : [{ id: modelKey, label: modelKey }]).map((entry) => ({ value: entry.id, label: entry.label }))
         }),
-        h('div', { className: 'space-y-3' }, [
-          h('span', { className: 'text-sm font-medium uppercase tracking-wide text-white/70 block' }, 'AI capabilities'),
-          h('button', {
-            onClick: onToggleAI,
-            className: `w-full rounded-2xl px-5 py-3 border transition-all text-sm font-medium flex items-center justify-between ${
-              includeAI
-                ? 'border-emerald-400/60 bg-emerald-400/20 text-emerald-100'
-                : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20'
-            }`
-          }, [
-            h('span', null, includeAI ? 'Enabled' : 'Disabled'),
-            h('span', null, includeAI ? '🧠' : '🌐')
-          ])
+        h('div', { className: 'space-y-2 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-sm text-white/70' }, [
+          h('h3', { className: 'text-sm font-semibold text-white' }, 'Automatic AI usage'),
+          h('p', null, 'Groq decides when to call its APIs. Generated apps automatically receive the secure GROQ_API_KEY without prompting end users.'),
+          h('p', null, 'Feel free to request any AI behaviors in your prompt—Groq has the context it needs.')
         ])
       ]),
       h('div', { className: 'space-y-2' }, [
@@ -530,6 +506,8 @@ function createPreviewDocument(code) {
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
   <style>
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
     .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
@@ -551,13 +529,34 @@ function createPreviewDocument(code) {
       react: React,
       'react-dom': ReactDOM,
       'react-dom/client': ReactDOM,
-      'react/jsx-runtime': React
+      'react/jsx-runtime': React,
+      axios: window.axios,
+      'axios/index': window.axios,
+      'axios/default': window.axios,
+      'react-router-dom': window.ReactRouterDOM,
+      'react-router-dom/client': window.ReactRouterDOM,
+      'react-router-dom/server': window.ReactRouterDOM,
+      'react-router': window.ReactRouterDOM
     };
 
     const require = (name) => {
+      if (name.endsWith('.css')) {
+        return {};
+      }
+
+      if (name.startsWith('tailwindcss')) {
+        return {};
+      }
+
       if (moduleMap[name]) {
         return moduleMap[name];
       }
+
+      const trimmed = name.replace(/\.js$/i, '');
+      if (moduleMap[trimmed]) {
+        return moduleMap[trimmed];
+      }
+
       throw new Error('Unsupported import in preview: ' + name);
     };
 
