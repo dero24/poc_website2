@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
-import { Sparkles, Wand2, Cpu, Zap } from 'lucide-react';
+import { Sparkles, Wand2, Zap } from 'lucide-react';
 import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
 import groqService from '../services/groqService';
 
 const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
   const [appIdea, setAppIdea] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('base');
-  const [selectedModel, setSelectedModel] = useState('llama-3.1-70b-versatile');
-  const [includeAI, setIncludeAI] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const models = groqService.getAvailableModels();
+    if (Array.isArray(models) && models.length > 0) {
+      return models[0]?.id || 'llama-3.1-70b-versatile';
+    }
+    if (models && typeof models === 'object') {
+      const [firstKey, firstValue] = Object.entries(models)[0] || [];
+      if (typeof firstValue === 'string') return firstKey;
+      if (firstValue?.id) return firstValue.id;
+    }
+    return 'llama-3.1-70b-versatile';
+  });
   const [error, setError] = useState('');
 
-  const models = groqService.getAvailableModels();
+  const rawModels = groqService.getAvailableModels();
+  const modelOptions = Array.isArray(rawModels)
+    ? rawModels
+    : Object.entries(rawModels || {}).map(([id, value]) => ({
+        id,
+        label: typeof value === 'string' ? value : value?.label || id
+      }));
 
   const handleGenerate = async () => {
     if (!appIdea.trim()) {
@@ -18,15 +33,22 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
       return;
     }
 
+    const apiKey = groqService.getApiKey();
+    if (!apiKey) {
+      setError('Add your Groq API key in the settings to generate apps.');
+      return;
+    }
+
     setIsGenerating(true);
     setError('');
 
     try {
-      const template = PROMPT_TEMPLATES[selectedTemplate];
-      const prompt = buildPrompt(template.template, appIdea, includeAI);
-      
-      console.log('Generating with prompt:', prompt);
-      
+      const template = PROMPT_TEMPLATES.base;
+      const prompt = buildPrompt(template.template, appIdea, {
+        apiKey,
+        modelId: selectedModel
+      });
+
       const generatedCode = await groqService.generateCode(prompt, selectedModel);
       
       if (!groqService.validateCode(generatedCode)) {
@@ -37,7 +59,7 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
         id: Date.now().toString(),
         appIdea,
         model: selectedModel,
-        template: selectedTemplate,
+        template: 'base',
         code: generatedCode,
         prompt,
         timestamp: Date.now(),
@@ -107,28 +129,8 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
           />
         </div>
 
-        {/* Configuration Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Template Selection */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">
-              App Template
-            </label>
-            <select
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isGenerating}
-            >
-              {Object.entries(PROMPT_TEMPLATES).map(([key, template]) => (
-                <option key={key} value={key} className="bg-gray-800">
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Model Selection */}
+        {/* Configuration */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
             <label className="block text-sm font-medium text-white mb-3">
               Groq Model
@@ -139,33 +141,19 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isGenerating}
             >
-              {Object.entries(models).map(([key, name]) => (
-                <option key={key} value={key} className="bg-gray-800">
-                  {name}
+              {modelOptions.map((model) => (
+                <option key={model.id} value={model.id} className="bg-gray-800">
+                  {model.label || model.id}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* AI Features Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">
-              AI Features
-            </label>
-            <button
-              onClick={() => setIncludeAI(!includeAI)}
-              className={`w-full px-4 py-3 rounded-lg border transition-all ${
-                includeAI
-                  ? 'bg-blue-500 border-blue-500 text-white'
-                  : 'bg-white/10 border-white/20 text-gray-300 hover:bg-white/20'
-              }`}
-              disabled={isGenerating}
-            >
-              <div className="flex items-center justify-center space-x-2">
-                <Cpu className="w-4 h-4" />
-                <span>{includeAI ? 'Enabled' : 'Disabled'}</span>
-              </div>
-            </button>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-300">
+            <p className="font-semibold text-white mb-2">AI usage policy</p>
+            <p>
+              Groq decides when AI calls are needed. The API key is injected automatically into generated apps, so you never have to expose it to users.
+            </p>
           </div>
         </div>
 

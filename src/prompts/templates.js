@@ -5,14 +5,17 @@ export const PROMPT_TEMPLATES = {
     template: `Create a React app: {APP_IDEA}
 
 STRICT RULES:
-- Output ONLY working React JSX code
 - Use React hooks, no class components
 - Include all imports at top
-- Use Tailwind CSS for styling
 - Make it responsive and beautiful
-- No markdown, no explanations
 - Single functional component export
-- Browser-compatible only
+- Browser-compatible
+- Output ONLY working React JSX code (no markdown or commentary).
+- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
+- Never prompt the user for API keys. The environment already supplies one.
+- Declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
+- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
+- Do not expose or log the API key.
 {AI_FEATURES}
 
 Return complete working code:`
@@ -89,13 +92,12 @@ Output working tool:`
 };
 
 export const AI_FEATURES_INJECTION = `
-AI CAPABILITIES AVAILABLE:
-- Groq API key pre-configured
-- Chat completion endpoint: /api/groq/chat
-- Image generation: /api/groq/image
-- Text analysis: /api/groq/analyze
-- Use fetch() to call endpoints
-- Handle responses with async/await
+GROQ USAGE NOTES:
+- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
+- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer ${GROQ_API_KEY}\` }.
+- Send the selected model '{MODEL_ID}' alongside any messages payload.
+- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
+- Never request or display the API key to the user.
 `;
 
 export const FALLBACK_CODE = `
@@ -122,8 +124,11 @@ export default function FallbackApp() {
 }
 `;
 
-export function buildPrompt(template, appIdea, includeAI = false) {
+export function buildPrompt(template, appIdea, options = {}) {
+  const { apiKey = '', modelId = '' } = options;
   let prompt = template.replace('{APP_IDEA}', appIdea);
-  prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
+  prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
+  prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
+  prompt = prompt.replace('{AI_FEATURES}', AI_FEATURES_INJECTION);
   return prompt;
 }

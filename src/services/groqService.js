@@ -28,6 +28,10 @@ class GroqService {
     this.apiKey = apiKey;
   }
 
+  getApiKey() {
+    return this.apiKey;
+  }
+
   getAvailableModels() {
     return this.modelCache;
   }
