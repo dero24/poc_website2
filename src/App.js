@@ -530,6 +530,8 @@ function createPreviewDocument(code) {
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
   <style>
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
     .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
@@ -551,13 +553,34 @@ function createPreviewDocument(code) {
       react: React,
       'react-dom': ReactDOM,
       'react-dom/client': ReactDOM,
-      'react/jsx-runtime': React
+      'react/jsx-runtime': React,
+      axios: window.axios,
+      'axios/index': window.axios,
+      'axios/default': window.axios,
+      'react-router-dom': window.ReactRouterDOM,
+      'react-router-dom/client': window.ReactRouterDOM,
+      'react-router-dom/server': window.ReactRouterDOM,
+      'react-router': window.ReactRouterDOM
     };
 
     const require = (name) => {
+      if (name.endsWith('.css')) {
+        return {};
+      }
+
+      if (name.startsWith('tailwindcss')) {
+        return {};
+      }
+
       if (moduleMap[name]) {
         return moduleMap[name];
       }
+
+      const trimmed = name.replace(/\.js$/i, '');
+      if (moduleMap[trimmed]) {
+        return moduleMap[trimmed];
+      }
+
       throw new Error('Unsupported import in preview: ' + name);
     };
 
