@@ -3,7 +3,7 @@ import { Sparkles, Wand2, Zap } from 'lucide-react';
 import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
 import groqService from '../services/groqService';
 
-const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
+const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey }) => {
   const [appIdea, setAppIdea] = useState('');
   const [selectedModel, setSelectedModel] = useState(() => {
     const models = groqService.getAvailableModels();
@@ -36,6 +36,9 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating }) => {
     const apiKey = groqService.getApiKey();
     if (!apiKey) {
       setError('Add your Groq API key in the settings to generate apps.');
+      if (typeof onRequireApiKey === 'function') {
+        onRequireApiKey();
+      }
       return;
     }
 
