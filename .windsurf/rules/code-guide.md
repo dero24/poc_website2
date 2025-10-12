@@ -1,0 +1,31 @@
+---
+trigger: always_on
+---
+
+## Core Practices for AI Agents
+- Always document meaningful edits you make in `README.md` (or appropriate docs) so humans understand the change.
+- After every code modification run the relevant checks (e.g., `npm run dev`, targeted tests, or `npm run build`) to confirm nothing broke.
+- When touching shared logic, keep `src/App.jsx` (declarative app) and `src/App.js` (standalone entry) aligned—update both or explain why only one changes.
+- Do not delete or disable functionality without delivering an equivalent or better alternative.
+
+## API & Security
+- Never prompt end users for Groq keys in generated apps; rely on injected `GROQ_API_KEY` constants.
+- When adding AI-dependent features, update prompts/services so generated code knows to use the provided API key and selected model automatically.
+
+## Preview & Dependencies
+- If you introduce new libraries (CDNs, ES modules, etc.), extend `createPreviewDocument()` in `src/App.js` so the preview iframe accepts them instead of throwing “Unsupported import” errors.
+- Prefer lightweight scripts or CDN bundles over npm installs in the preview sandbox.
+
+## UI/UX Consistency
+- If you remove or add UI controls (like template or AI toggles), also adjust prompts, services, and generator components so behavior stays consistent.
+- Keep onboarding flows intact—modal triggers such as the API key splash screen must stay connected across all entry points.
+
+## Testing Checklist for Agents
+- Do not make any changes to the api key code when user enters the key as that connectivity works great.
+- Generate at least one representative app (e.g., “video player”) to ensure the preview works and no unsupported import errors occur.
+- Run `npm run build` before finalizing significant changes; flag failures with context.
+
+## Collaboration Reminders
+- Keep diffs tight and relevant to the user’s request; note any follow-on tasks separately.
+- Append any new guardrails or onboarding advice you discover directly to this file.
+- Revisit these rules before each refactor and spell out assumptions in the worklog or README so human collaborators stay informed.
