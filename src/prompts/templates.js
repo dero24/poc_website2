@@ -125,10 +125,19 @@ export default function FallbackApp() {
 `;
 
 export function buildPrompt(template, appIdea, options = {}) {
-  const { apiKey = '', modelId = '' } = options;
+  const normalized = typeof options === 'boolean'
+    ? { includeAI: options }
+    : (options ?? {});
+
+  const {
+    apiKey = '',
+    modelId = '',
+    includeAI = true
+  } = normalized;
+
   let prompt = template.replace('{APP_IDEA}', appIdea);
   prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
   prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
-  prompt = prompt.replace('{AI_FEATURES}', AI_FEATURES_INJECTION);
+  prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
   return prompt;
 }
