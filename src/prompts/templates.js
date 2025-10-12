@@ -17,6 +17,7 @@ STRICT RULES:
 - When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
 - Do not expose or log the API key.
 - Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
+- For AI chatbots, ensure proper error handling and loading states for API calls.
 {AI_FEATURES}
 
 Return complete working code:`
@@ -93,13 +94,25 @@ Output working tool:`
 };
 
 export const AI_FEATURES_INJECTION = `
-AI CAPABILITIES AVAILABLE:
-- Groq API key pre-configured
-- Chat completion endpoint: /api/groq/chat
-- Image generation: /api/groq/image
-- Text analysis: /api/groq/analyze
-- Use fetch() to call endpoints
-- Handle responses with async/await
+GROQ USAGE NOTES:
+- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
+- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
+- Send the selected model '{MODEL_ID}' alongside any messages payload.
+- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
+- Never request or display the API key to the user.
+- Example fetch call:
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': \`Bearer \${GROQ_API_KEY}\`
+    },
+    body: JSON.stringify({
+      model: '{MODEL_ID}',
+      messages: [{ role: 'user', content: userMessage }],
+      temperature: 0.7
+    })
+  });
 `;
 
 export const FALLBACK_CODE = `
