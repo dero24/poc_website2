@@ -50,27 +50,53 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
   const [versions, setVersions] = useState([]);
-  const [aiIdeas, setAiIdeas] = useState([
-    'AI productivity hub with task insights and focus music',
-    'Mood-based recipe recommender with pantry inventory',
-    'Interactive workout planner with adaptive difficulty',
-    'Financial wellness dashboard with smart savings goals',
-    'AI storytelling studio with character memory',
-    'Habit tracker with celebratory streak animations'
-  ]);
+  const [aiIdeas, setAiIdeas] = useState([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [initialIdeasLoaded, setInitialIdeasLoaded] = useState(false);
 
   const refreshHistory = useCallback(() => {
     setVersions(versionService.getAllVersions());
   }, []);
+
+  const populateInitialIdeas = useCallback(async (key) => {
+    if (!key) return;
+    setLoadingIdeas(true);
+    try {
+      const newIdeas = await generateAIIdeas(key, modelKey);
+      setAiIdeas(newIdeas);
+    } catch (error) {
+      console.error('Failed to generate initial AI ideas:', error);
+      setAiIdeas([
+        'AI productivity hub with task insights and focus music',
+        'Mood-based recipe recommender with pantry inventory',
+        'Interactive workout planner with adaptive difficulty',
+        'Financial wellness dashboard with smart savings goals',
+        'AI storytelling studio with character memory',
+        'Habit tracker with celebratory streak animations'
+      ]);
+    } finally {
+      setLoadingIdeas(false);
+      setInitialIdeasLoaded(true);
+    }
+  }, [modelKey]);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('groq-api-key');
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      populateInitialIdeas(storedKey);
     } else {
       setShowApiModal(true);
+      setAiIdeas([
+        'AI productivity hub with task insights and focus music',
+        'Mood-based recipe recommender with pantry inventory',
+        'Interactive workout planner with adaptive difficulty',
+        'Financial wellness dashboard with smart savings goals',
+        'AI storytelling studio with character memory',
+        'Habit tracker with celebratory streak animations'
+      ]);
+      setInitialIdeasLoaded(true);
     }
 
     const currentApp = versionService.getCurrentApp();
@@ -80,7 +106,7 @@ function App() {
     }
 
     refreshHistory();
-  }, [refreshHistory]);
+  }, [refreshHistory, populateInitialIdeas]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +138,7 @@ function App() {
         setModelKey(list[0].id);
       }
     });
+    populateInitialIdeas(trimmed);
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -226,6 +253,7 @@ function App() {
       console.error('Failed to generate AI ideas:', error);
     } finally {
       setLoadingIdeas(false);
+      setInitialIdeasLoaded(true);
     }
   }, [apiKey, modelKey]);
 
@@ -250,7 +278,8 @@ function App() {
             onUseExample: setAppIdea,
             aiIdeas,
             onRefreshIdeas: refreshAIIdeas,
-            loadingIdeas
+            loadingIdeas,
+            initialIdeasLoaded
           })
         : null,
       activeView === 'preview' && generatedApp
@@ -335,7 +364,8 @@ function AppGenerator({
   onUseExample,
   aiIdeas,
   onRefreshIdeas,
-  loadingIdeas
+  loadingIdeas,
+  initialIdeasLoaded
 }) {
   return h('section', { className: 'bg-white/5 border border-white/10 rounded-3xl shadow-2xl shadow-iris/20 backdrop-blur-lg p-8 space-y-8' }, [
     h('div', { className: 'text-center space-y-3' }, [
@@ -381,13 +411,15 @@ function AppGenerator({
             className: 'px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all disabled:opacity-50'
           }, loadingIdeas ? 'Generating...' : '🔄 Refresh')
         ]),
-        h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, aiIdeas.map((idea, index) =>
-          h('button', {
-            key: `idea-${index}`,
-            onClick: () => onUseExample(idea),
-            className: 'text-left rounded-2xl border border-white/10 bg-black/25 hover:bg-white/10 px-4 py-3 text-sm text-white/70 hover:text-white transition-all'
-          }, ['→ ', idea])
-        ))
+        initialIdeasLoaded && aiIdeas.length
+          ? h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, aiIdeas.map((idea, index) =>
+              h('button', {
+                key: `idea-${index}`,
+                onClick: () => onUseExample(idea),
+                className: 'text-left rounded-2xl border border-white/10 bg-black/25 hover:bg-white/10 px-4 py-3 text-sm text-white/70 hover:text-white transition-all'
+              }, ['→ ', idea])
+            ))
+          : h('div', { className: 'text-white/60 text-sm italic py-3' }, loadingIdeas ? 'Fetching AI inspiration…' : 'AI-generated ideas will appear here once ready.')
       ])
     ]),
     h('div', null, [
@@ -572,7 +604,6 @@ function LoadingOverlay() {
 }
 
 function createPreviewDocument(code) {
-  const base64 = btoa(unescape(encodeURIComponent(code)));
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -589,83 +620,44 @@ function createPreviewDocument(code) {
             gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' }
           },
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-          boxShadow: { 'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)' }
+          boxShadow: { 'soft': '0 8px 30px rgba(15,23,42,0.35)' }
         }
       }
     }
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
   <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
-  <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
-  <script src="https://unpkg.com/react-knowledge-graph@1/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
   <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.umd.js"></script>
   <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
-  <script src="https://unpkg.com/react-dnd@16/dist/umd/ReactDnD.min.js"></script>
-  <script src="https://unpkg.com/react-dnd-html5-backend@16/dist/umd/ReactDnDHTML5Backend.min.js"></script>
+  <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
+  <script src="https://unpkg.com/react-knowledge-graph@1/dist/index.umd.js"></script>
   <style>
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
-    .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
+    body { margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
+    .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module">
-    const raw = decodeURIComponent(escape(window.atob('${base64}')));
-    const transformed = Babel.transform(raw, {
-      presets: [
-        ['env', { modules: 'commonjs' }],
-        'react'
-      ],
-      sourceType: 'module'
-    }).code;
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-    const moduleMap = {
-      react: React,
-      'react-dom': ReactDOM,
-      'react-dom/client': ReactDOM,
-      'react/jsx-runtime': React,
-      axios: window.axios,
-      'axios/index': window.axios,
-      'axios/default': window.axios,
-      'react-router-dom': window.ReactRouterDOM,
-      'react-router-dom/client': window.ReactRouterDOM,
-      'react-router-dom/server': window.ReactRouterDOM,
-      'react-router': window.ReactRouterDOM,
-      reactflow: window.ReactFlow,
-      'reactflow/dist/style.css': {},
-      'react-knowledge-graph': window.ReactKnowledgeGraph,
-      recharts: window.Recharts,
-      'framer-motion': window.framerMotion || window.FramerMotion || {},
-      'framer-motion/dist/framer-motion': window.framerMotion || window.FramerMotion || {},
-      '@framer-motion/react': window.framerMotion || window.FramerMotion || {},
-      'react-spring': window.ReactSpring,
-      'react-dnd': window.ReactDnD,
-      'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
-      '@react-spring/web': window.ReactSpring,
-      marked: window.marked,
-      'marked/marked.min': window.marked
-    };
-
-    const require = (name) => {
-      if (name.endsWith('.css')) {
-        return {};
-      }
-
-      if (name.startsWith('tailwindcss')) {
-        return {};
-      }
-
+    window.require = (name) => {
+      if (name === 'react') return React;
+      if (name === 'react-dom') return ReactDOM;
+      if (name === 'axios') return window.axios;
+      if (name === 'react-router-dom') return window.ReactRouterDOM;
       if (name === 'lucide-react' || name.startsWith('lucide-react/')) {
         const lucide = window.lucideReact || window.LucideReact || window.lucide;
         if (!lucide) {
-          throw new Error('Lucide icons failed to load in preview');
+          console.warn('Lucide icons failed to load in preview');
+          return { icons: {} };
         }
 
         const icons = lucide.icons ?? {};
@@ -676,96 +668,74 @@ function createPreviewDocument(code) {
           icons
         };
       }
-
-      if (name === 'recharts' || name.startsWith('recharts/')) {
-        if (!window.Recharts) {
-          throw new Error('Recharts failed to load in preview');
-        }
-        return window.Recharts;
+      if (name === 'marked') return window.marked || {};
+      if (name === 'recharts') return window.Recharts || {};
+      if (name === 'framer-motion') {
+        const fm = window.framerMotion || window.FramerMotion;
+        if (fm) return fm;
+        const mock = {};
+        ['div','span','button','section','h1','h2','h3','p','img','a','ul','li'].forEach(tag => {
+          mock[tag] = tag;
+        });
+        return { motion: mock, AnimatePresence: ({ children }) => children };
       }
-
-      if (name === 'marked' || name.startsWith('marked/')) {
-        if (!window.marked) {
-          throw new Error('Marked library failed to load in preview');
-        }
-        const marked = window.marked;
-        return {
-          ...marked,
-          default: marked,
-          marked
-        };
-      }
-
-      if (name === 'framer-motion' || name.startsWith('framer-motion/')) {
-        const framerMotion = window.framerMotion || window.FramerMotion;
-        if (!framerMotion) {
-          // Return mock framer-motion objects to prevent crashes
-          return {
-            motion: {
-              div: 'div',
-              span: 'span', 
-              button: 'button',
-              section: 'section',
-              h1: 'h1',
-              h2: 'h2',
-              h3: 'h3',
-              p: 'p',
-              img: 'img',
-              a: 'a'
-            },
-            AnimatePresence: ({ children }) => children,
-            useAnimation: () => ({}),
-            useMotionValue: (initial) => ({ get: () => initial, set: () => {} }),
-            useTransform: () => ({}),
-            default: {
-              div: 'div',
-              span: 'span',
-              button: 'button'
-            }
-          };
-        }
-        return framerMotion;
-      }
-
-      if (moduleMap[name]) {
-        return moduleMap[name];
-      }
-
-      const trimmed = name.replace(/\.js$/i, '');
-      if (moduleMap[trimmed]) {
-        return moduleMap[trimmed];
-      }
-
-      // Log unsupported imports but don't crash the app
+      if (name === 'react-spring') return window.ReactSpring || {};
+      if (name === 'reactflow') return window.ReactFlow || {};
+      if (name === 'react-knowledge-graph') return window.ReactKnowledgeGraph || {};
+      if (name.endsWith('.css')) return {};
       console.warn('Unsupported import in preview:', name);
       return {};
     };
 
-    const exports = {};
-    const module = { exports };
-
-    try {
-      const fn = new Function('exports', 'module', 'require', 'React', 'ReactDOM', transformed);
-      fn(exports, module, require, React, ReactDOM);
-    } catch (error) {
-      console.error('Preview execution error', error);
-      window.__morphic_error = error;
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      componentDidCatch(error, errorInfo) {
+        console.error('Preview error:', error, errorInfo);
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="error-boundary">
+              <div className="font-semibold text-red-600 mb-2">⚠️ Preview Error</div>
+              <div className="text-red-500 text-sm">
+                {this.state.error?.message || 'Something went wrong rendering the app.'}
+              </div>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
     }
 
-    const candidate = module.exports?.default || exports.default || window.App || window.GeneratedApp;
-    const RootComponent = candidate || (() => {
-      const errorMsg = window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.';
-      console.error('Preview render failed:', errorMsg);
-      return React.createElement('div', { className: 'fallback-shell' }, [
-        React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
-        React.createElement('div', { key: 'message', style: { marginBottom: '1rem' } }, 'Preview Error'),
-        React.createElement('div', { key: 'details', style: { fontSize: '0.9rem', opacity: 0.7 } }, errorMsg),
-        React.createElement('div', { key: 'help', style: { fontSize: '0.8rem', marginTop: '1rem', opacity: 0.6 } }, 'Try regenerating or check the code for syntax errors.')
-      ]);
-    });
+    ${code}
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(RootComponent));
+    try {
+      const AppComponent = typeof App !== 'undefined'
+        ? App
+        : typeof AIProductivityHub !== 'undefined'
+          ? AIProductivityHub
+          : typeof GeneratedApp !== 'undefined'
+            ? GeneratedApp
+            : () => <div className="p-10 text-center">No default export found.</div>;
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(
+        <ErrorBoundary>
+          <AppComponent />
+        </ErrorBoundary>
+      );
+
+      window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
+    } catch (error) {
+      console.error('Render error:', error);
+      window.parent.postMessage({ type: 'preview-error', error: error.message }, '*');
+    }
   </script>
 </body>
 </html>`;

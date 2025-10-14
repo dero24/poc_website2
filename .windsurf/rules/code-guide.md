@@ -24,8 +24,8 @@ trigger: always_on
 
 ## Testing Checklist for Agents
 - Do not make any changes to the api key code when user enters the key as that connectivity works great.
-- Generate at least one representative app (e.g., “video player”) to ensure the preview works and no unsupported import errors occur.
-- Run `npm run build` before finalizing significant changes; flag failures with context.
+- Generate at least two representative app (e.g., “video player”) to ensure the preview works and no unsupported import errors occur.
+- Run python -m server command to run it and test
 
 ## Collaboration Reminders
 - Keep diffs tight and relevant to the user’s request; note any follow-on tasks separately.
