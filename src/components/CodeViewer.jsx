@@ -1,32 +1,46 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Copy, Download, Eye, Code, CheckCircle, Save } from 'lucide-react';
+import { Copy, Download, Eye, Code, CheckCircle, Save, Edit3, X } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
 const CodeViewer = ({ app, onCodeChange }) => {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('formatted'); // 'formatted' or 'raw'
   const [localCode, setLocalCode] = useState(app?.code || '');
+  const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setLocalCode(app?.code || '');
+    setIsEditing(false);
+    setHasChanges(false);
+    setSaved(false);
   }, [app?.code]);
 
   const handleCodeChange = useMemo(() => {
     return (value) => {
+      if (!isEditing) return;
       setLocalCode(value);
       setHasChanges(value !== app?.code);
       setSaved(false);
-      // Auto-save changes with debounce
-      clearTimeout(window.codeChangeTimeout);
-      window.codeChangeTimeout = setTimeout(() => {
-        onCodeChange?.(value);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }, 500);
     };
-  }, [onCodeChange, app?.code]);
+  }, [isEditing, app?.code]);
+
+  const handleSave = () => {
+    if (!hasChanges) return;
+    onCodeChange?.(localCode);
+    setSaved(true);
+    setHasChanges(false);
+    setIsEditing(false);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleCancel = () => {
+    setLocalCode(app?.code || '');
+    setHasChanges(false);
+    setIsEditing(false);
+    setSaved(false);
+  };
 
   const copyToClipboard = async () => {
     try {
@@ -146,13 +160,41 @@ ${app.template}
               <span>Saved & Updated Preview</span>
             </div>
           )}
-          {hasChanges && !saved && (
+          {!saved && isEditing && hasChanges && (
             <div className="flex items-center space-x-2 text-yellow-400 text-sm">
               <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-              <span>Auto-saving...</span>
+              <span>Unsaved edits</span>
             </div>
           )}
-          
+
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white flex items-center gap-2 transition-colors"
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit Code
+            </button>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleSave}
+                disabled={!hasChanges}
+                className="px-3 py-1 rounded-lg bg-green-500 hover:bg-green-600 disabled:bg-green-500/40 text-sm text-white flex items-center gap-2 transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                Save Changes
+              </button>
+              <button
+                onClick={handleCancel}
+                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white flex items-center gap-2 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            </div>
+          )}
+
           {/* View Mode Toggle */}
           <div className="flex bg-white/10 rounded-lg p-1">
             <button
@@ -231,7 +273,7 @@ ${app.template}
               onChange={handleCodeChange}
               theme="vs-dark"
               options={{
-                readOnly: false,
+                readOnly: !isEditing,
                 fontSize: 14,
                 lineNumbers: 'on',
                 minimap: { enabled: true },
