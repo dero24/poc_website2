@@ -40,7 +40,7 @@ STYLING REQUIREMENTS:
 - Buttons: gradient backgrounds, hover:-translate-y-0.5, hover:shadow-xl
 - Cards: bg-white/90 backdrops with border border-white/10 or border-slate-200
 - Animations: use framer-motion for entrance animations and button feedback when relevant
-- Icons: incorporate Lucide icons (loaded via CDN) for primary actions/sections
+- Icons: incorporate Lucide icons (available globally via lucide-react CDN) for primary actions/sections
 - Weather-specific: include realistic weather iconography, temperature gradients, forecast cards
 - Music/AI/analytics: use charts (Recharts), progress rings, and stat badges when referenced
 - Make it look like a premium polished product ready for launch
