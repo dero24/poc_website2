@@ -23,9 +23,10 @@ function App() {
   const [apiKey, setApiKey] = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
-  const [templateKey] = useState('base');
+  const templateKey = 'base';
   const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
+  const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
@@ -96,10 +97,11 @@ function App() {
       return;
     }
 
-    const template = PROMPT_TEMPLATES.base;
+    const template = PROMPT_TEMPLATES[templateKey];
     const prompt = buildPrompt(template.template, appIdea, {
       apiKey,
-      modelId: modelKey
+      modelId: modelKey,
+      includeAI
     });
 
     setIsGenerating(true);
