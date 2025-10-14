@@ -4,7 +4,6 @@ import versionService from './services/versionService.js';
 import {
   PROMPT_TEMPLATES,
   buildPrompt,
-  AI_FEATURES_INJECTION,
   FALLBACK_CODE
 } from './prompts/templates.js';
 
@@ -61,7 +60,8 @@ function App() {
       const list = await groqService.refreshModels();
       if (cancelled) return;
       setModelOptions(list);
-      if (!list.find((entry) => entry.id === modelKey) && list.length) {
+      const preferred = list.find((entry) => entry.id === modelKey);
+      if (!preferred && list.length) {
         setModelKey(list[0].id);
       }
     };
@@ -69,7 +69,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [apiKey, modelKey]);
+  }, [apiKey]);
 
   const handleApiKeySubmit = useCallback((key) => {
     const trimmed = key.trim();
@@ -79,11 +79,12 @@ function App() {
     setShowApiModal(false);
     groqService.refreshModels().then((list) => {
       setModelOptions(list);
-      if (list.length && !list.find((entry) => entry.id === modelKey)) {
+      const existing = list.find((entry) => entry.id === modelKey);
+      if (!existing && list.length) {
         setModelKey(list[0].id);
       }
     });
-  }, [modelKey]);
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     if (!appIdea.trim()) {
@@ -112,7 +113,7 @@ function App() {
         id: Date.now().toString(),
         appIdea,
         model: modelKey,
-        template: templateKey,
+        template: 'base',
         code: generatedCode,
         prompt,
         timestamp: Date.now(),
@@ -156,7 +157,7 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [appIdea, apiKey, includeAI, modelKey, templateKey, refreshHistory]);
+  }, [appIdea, apiKey, modelKey, refreshHistory]);
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
@@ -302,7 +303,10 @@ function AppGenerator({
           label: 'Groq model',
           value: modelKey,
           onChange: onModelChange,
-          options: (modelOptions?.length ? modelOptions : [{ id: modelKey, label: modelKey }]).map((entry) => ({ value: entry.id, label: entry.label }))
+          options: (Array.isArray(modelOptions) && modelOptions.length
+            ? modelOptions
+            : [{ id: modelKey, label: modelKey }]
+          ).map((entry) => ({ value: entry.id, label: entry.label }))
         }),
         h('div', { className: 'space-y-2 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-sm text-white/70' }, [
           h('h3', { className: 'text-sm font-semibold text-white' }, 'Automatic AI usage'),

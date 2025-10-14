@@ -116,6 +116,7 @@ function App() {
             onAppGenerated={handleAppGenerated}
             isGenerating={isGenerating}
             setIsGenerating={setIsGenerating}
+            onRequireApiKey={() => setShowApiModal(true)}
           />
         )}
         
