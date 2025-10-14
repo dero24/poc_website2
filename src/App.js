@@ -48,7 +48,6 @@ function App() {
     const currentApp = versionService.getCurrentApp();
     if (currentApp) {
       setGeneratedApp(currentApp);
-      setActiveView('preview');
     }
 
     refreshHistory();
@@ -373,22 +372,52 @@ function LivePreview({ app }) {
 }
 
 function CodeViewer({ app }) {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [localCode, setLocalCode] = React.useState(app.code);
+
+  React.useEffect(() => {
+    setLocalCode(app.code);
+    setIsEditing(false);
+  }, [app.code]);
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(app.code);
+    navigator.clipboard.writeText(localCode);
+  };
+
+  const handleCodeInput = (event) => {
+    const nextCode = event.target.value;
+    setLocalCode(nextCode);
+    if (typeof onCodeChange === 'function') {
+      onCodeChange(nextCode);
+    }
   };
 
   return h('section', { className: 'bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl shadow-iris/20 overflow-hidden' }, [
     h('div', { className: 'flex items-center justify-between px-6 py-4 border-b border-white/10' }, [
       h('div', null, [
         h('h2', { className: 'text-xl font-semibold' }, 'Generated Code'),
-        h('p', { className: 'text-xs text-white/60' }, 'Fully sanitized Groq output ready to run in browser')
+        h('p', { className: 'text-xs text-white/60' }, 'Edit the JSX below to update the preview in real-time')
       ]),
-      h('button', {
-        onClick: handleCopy,
-        className: 'px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs tracking-wide'
-      }, 'Copy code')
+      h('div', { className: 'flex items-center gap-2' }, [
+        h('button', {
+          onClick: handleCopy,
+          className: 'px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs tracking-wide'
+        }, 'Copy'),
+        h('button', {
+          onClick: () => setIsEditing((prev) => !prev),
+          className: 'px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all'
+        }, isEditing ? 'Done Editing' : '✏️ Edit Code')
+      ])
     ]),
-    h('div', { className: 'bg-black/70 max-h-[60vh] overflow-auto p-6 font-mono text-xs leading-relaxed text-emerald-200' }, app.code)
+    isEditing
+      ? h('textarea', {
+          value: localCode,
+          onChange: handleCodeInput,
+          className: 'block w-full min-h-[60vh] bg-black/80 text-emerald-200 font-mono text-xs leading-relaxed p-6 focus:outline-none focus:ring-2 focus:ring-iris/60'
+        })
+      : h('pre', {
+          className: 'bg-black/70 max-h-[60vh] overflow-auto p-6 font-mono text-xs leading-relaxed text-emerald-200'
+        }, localCode)
   ]);
 }
 
