@@ -31,10 +31,42 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
   const [versions, setVersions] = useState([]);
+  const [aiIdeas, setAiIdeas] = useState([]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [initialIdeasLoaded, setInitialIdeasLoaded] = useState(false);
 
   const refreshHistory = useCallback(() => {
     setVersions(versionService.getAllVersions());
   }, []);
+
+  const generateAIIdeas = useCallback(async () => {
+    if (!apiKey) return;
+    
+    setLoadingIdeas(true);
+    try {
+      const prompt = `Generate 6 creative, specific app ideas that would showcase modern web development. Each should be 1-2 sentences describing a unique, useful application. Return as a JSON array of strings only, no other text.`;
+      const response = await groqService.generateCode(prompt, modelKey);
+      const ideas = JSON.parse(response.replace(/```json|```/g, '').trim());
+      if (Array.isArray(ideas) && ideas.length > 0) {
+        setAiIdeas(ideas.slice(0, 6));
+      }
+    } catch (error) {
+      console.warn('AI idea generation failed:', error);
+      setAiIdeas(EXAMPLE_IDEAS.slice(0, 6));
+    } finally {
+      setLoadingIdeas(false);
+    }
+  }, [apiKey, modelKey]);
+
+  const populateInitialIdeas = useCallback(async () => {
+    if (initialIdeasLoaded || !apiKey) {
+      setAiIdeas(EXAMPLE_IDEAS.slice(0, 6));
+      return;
+    }
+    
+    setInitialIdeasLoaded(true);
+    await generateAIIdeas();
+  }, [apiKey, generateAIIdeas, initialIdeasLoaded]);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('groq-api-key');
@@ -51,7 +83,8 @@ function App() {
     }
 
     refreshHistory();
-  }, [refreshHistory]);
+    populateInitialIdeas();
+  }, [refreshHistory, populateInitialIdeas]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +115,7 @@ function App() {
       if (!existing && list.length) {
         setModelKey(list[0].id);
       }
+      populateInitialIdeas();
     });
   }, []);
 
@@ -123,6 +157,7 @@ function App() {
       setActiveView('preview');
       versionService.saveVersion(appData);
       setTimeout(() => refreshHistory(), 0);
+      populateInitialIdeas();
     } catch (error) {
       console.error(error);
       const message = error?.message || 'Generation failed.';
@@ -206,7 +241,16 @@ function App() {
           })
         : null,
       activeView === 'code' && generatedApp
-        ? h(CodeViewer, { app: generatedApp })
+        ? h(CodeViewer, { 
+            app: generatedApp,
+            onCodeChange: (newCode) => {
+              const updatedApp = { ...generatedApp, code: newCode, timestamp: Date.now() };
+              setGeneratedApp(updatedApp);
+              versionService.saveVersion(updatedApp);
+              versionService.setCurrentApp(updatedApp);
+              setTimeout(() => refreshHistory(), 0);
+            }
+          })
         : null,
       activeView === 'history'
         ? h(VersionHistory, {
@@ -313,15 +357,30 @@ function AppGenerator({
           h('p', null, 'Feel free to request any AI behaviors in your prompt—Groq has the context it needs.')
         ])
       ]),
-      h('div', { className: 'space-y-2' }, [
-        h('h3', { className: 'text-sm font-medium uppercase tracking-wide text-white/60' }, 'Need a spark?'),
-        h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, EXAMPLE_IDEAS.map((idea, index) =>
+      h('div', { className: 'space-y-4' }, [
+        h('div', { className: 'flex items-center justify-between mb-3' }, [
+          h('h3', { className: 'text-sm font-medium uppercase tracking-wide text-white/60' }, 'Need a spark?'),
           h('button', {
-            key: `idea-${index}`,
-            onClick: () => onUseExample(idea),
-            className: 'text-left rounded-2xl border border-white/10 bg-black/25 hover:bg-white/10 px-4 py-3 text-sm text-white/70 hover:text-white transition-all'
-          }, ['→ ', idea])
-        ))
+            onClick: generateAIIdeas,
+            disabled: loadingIdeas,
+            className: 'px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all disabled:opacity-50'
+          }, '🔄 Refresh')
+        ]),
+        initialIdeasLoaded && aiIdeas.length
+          ? h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, aiIdeas.map((idea, index) =>
+              h('button', {
+                key: `idea-${index}`,
+                onClick: () => onUseExample(idea),
+                className: 'text-left rounded-2xl border border-white/10 bg-black/25 hover:bg-white/10 px-4 py-3 text-sm text-white/70 hover:text-white transition-all'
+              }, ['→ ', idea])
+            ))
+          : h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, EXAMPLE_IDEAS.map((idea, index) =>
+              h('button', {
+                key: `fallback-${index}`,
+                onClick: () => onUseExample(idea),
+                className: 'text-left rounded-2xl border border-white/10 bg-black/25 hover:bg-white/10 px-4 py-3 text-sm text-white/70 hover:text-white transition-all'
+              }, ['→ ', idea])
+            ))
       ])
     ]),
     h('div', null, [
