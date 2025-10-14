@@ -1,118 +1,91 @@
 // Optimized prompt templates for token efficiency
+const ALLOWED_IMPORTS = 'react, react-dom (already provided via CDN) and Tailwind CSS classes';
+
 export const PROMPT_TEMPLATES = {
   base: {
     name: "Basic App",
-    template: `Create a React app: {APP_IDEA}
+    template: `Build a single-file React 18 app for {APP_IDEA}.
 
-STRICT RULES:
-- Use React hooks, no class components
-- Include all imports at top
-- Make it responsive and beautiful
-- Single functional component export
-- Browser-compatible
-- Output ONLY working React JSX code (no markdown or commentary).
-- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
-- Never prompt the user for API keys. The environment already supplies one.
-- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
-- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
-- Do not expose or log the API key.
-- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
-- For AI chatbots, ensure proper error handling and loading states for API calls.
+REQUIREMENTS:
+- Output JSX only; declare function App() and end with export default App.
+- Use React hooks and Tailwind CSS utilities for layout and styling.
+- Keep all data client-side with sample objects; avoid API calls unless using Groq.
+- Do not import packages beyond ${ALLOWED_IMPORTS}. Implement icons/visuals with Tailwind, emoji, or inline SVG.
+- Provide responsive sections, accessible labels, loading and empty states.
 {AI_FEATURES}
 
-Return complete working code:`
+Return the full source code:`
   },
 
   aiChat: {
     name: "AI Chat App",
-    template: `Create React chat app: {APP_IDEA}
+    template: `Build a React 18 chat assistant for {APP_IDEA}.
 
 REQUIREMENTS:
-- Working React JSX only
-- Use useState, useEffect hooks
-- Groq API integration with key: {API_KEY}
-- Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
-- Mobile responsive
+- Follow the base rules (hooks + Tailwind, App component, no extra imports).
+- Include chat history, user message input, submit handler, and scrolling transcript.
+- Show typing/loading indicators and friendly error messages when Groq fails.
+- Design the AI persona to act as a focused expert for this domain (planner, tutor, analyst, etc.).
+- Keep prompts grounded in the app's mission so replies stay on-topic and actionable.
 {AI_FEATURES}
 
-API endpoint available: /api/groq/chat
-Return complete code:`
+Return JSX only:`
   },
 
   dashboard: {
-    name: "Dashboard App", 
-    template: `Create React dashboard: {APP_IDEA}
+    name: "Dashboard App",
+    template: `Build a responsive dashboard for {APP_IDEA}.
 
-SPECS:
-- Modern dashboard layout
-- Charts/graphs if needed
-- Sidebar navigation
-- Responsive grid system
-- Tailwind CSS + Lucide icons
-- Working React hooks
-- No external data calls
+REQUIREMENTS:
+- Follow the base rules (hooks + Tailwind, App component, no extra imports).
+- Use Tailwind grids/cards to present metrics, lists, and quick filters.
+- Provide sample data arrays and derived stats (totals, trends, badges) without external APIs.
+- Offer interactive affordances (tab/filter state) and empty-state messaging.
+- When AI is included, have it generate insights, summaries, or action plans instead of generic chat.
 {AI_FEATURES}
 
-Output working JSX:`
+Return JSX only:`
   },
 
   game: {
     name: "Interactive Game",
-    template: `Create React game: {APP_IDEA}
+    template: `Build a miniature React game for {APP_IDEA}.
 
-GAME RULES:
-- Interactive gameplay
-- Score tracking
-- Game state management
-- Keyboard/mouse controls
-- Animated elements
-- Tailwind CSS styling
-- React hooks only
+REQUIREMENTS:
+- Follow the base rules (hooks + Tailwind, App component, no extra imports).
+- Track score/progress in state and reset/restart flows.
+- Handle keyboard or button input and provide win/lose feedback plus animations using Tailwind transitions.
+- Inline any assets (emoji, gradients); no external fetches.
+- Optional AI features should enhance gameplay (e.g., adaptive hints, story narration), not default chat.
 {AI_FEATURES}
 
-Return playable code:`
+Return JSX only:`
   },
 
   utility: {
     name: "Utility Tool",
-    template: `Create React utility: {APP_IDEA}
+    template: `Build a React utility for {APP_IDEA}.
 
-UTILITY SPECS:
-- Functional tool interface
-- Input/output handling
-- Real-time calculations
-- Clean, minimal design
-- Form validation
-- Tailwind CSS
-- React hooks
+REQUIREMENTS:
+- Follow the base rules (hooks + Tailwind, App component, no extra imports).
+- Accept user inputs, validate them, and display computed results instantly.
+- Explain how calculations work via helper text/tooltips and include reset/clear actions.
+- Cover edge cases with helpful messages (e.g., invalid numbers, missing selections).
+- If AI is involved, let it augment the workflow (e.g., generate recommendations, craft summaries) rather than default chat.
 {AI_FEATURES}
 
-Output working tool:`
+Return JSX only:`
   }
 };
 
 export const AI_FEATURES_INJECTION = `
-GROQ USAGE NOTES:
-- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
-- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
-- Send the selected model '{MODEL_ID}' alongside any messages payload.
-- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
-- Never request or display the API key to the user.
-- Example fetch call:
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${GROQ_API_KEY}\`
-    },
-    body: JSON.stringify({
-      model: '{MODEL_ID}',
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.7
-    })
-  });
+GROQ USAGE:
+- Only add AI calls when the experience clearly needs them.
+- Declare const GROQ_API_KEY = '{API_KEY}' near the imports (never log or expose it).
+- Implement async function callGroq(messages) that POSTs to https://api.groq.com/openai/v1/chat/completions with fetch.
+- Send model: '{MODEL_ID}' and an array of { role, content } messages; use temperature 0.6.
+- Manage loading/error state in React, and render responses as plain text (no unsanitized HTML).
+- Keep prompts concise and domain-specific so replies stay focused on the app's task.
 `;
 
 export const FALLBACK_CODE = `
