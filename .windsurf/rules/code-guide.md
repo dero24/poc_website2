@@ -14,7 +14,8 @@ trigger: always_on
 
 ## Preview & Dependencies
 - If you introduce new libraries (CDNs, ES modules, etc.), extend `createPreviewDocument()` in `src/App.js` so the preview iframe accepts them instead of throwing “Unsupported import” errors.
-- Prefer lightweight scripts or CDN bundles over npm installs in the preview sandbox.
+- Scripts and CDN bundles are a must.
+- All apps generated from user prompts must be with packages that DO NOT require npm installs.
 
 ## UI/UX Consistency
 - If you remove or add UI controls (like template or AI toggles), also adjust prompts, services, and generator components so behavior stays consistent.

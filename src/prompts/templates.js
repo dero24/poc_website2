@@ -24,6 +24,7 @@ STRICT RULES:
 - Do not expose or log the API key.
 - Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
 - For AI chatbots, ensure proper error handling and loading states for API calls.
+- Only import dependencies that are already available via CDN in the Morphic preview environment.
 {AI_FEATURES}
 
 STYLING REQUIREMENTS:

@@ -530,7 +530,7 @@ function createPreviewDocument(code) {
   <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
   <script src="https://unpkg.com/react-knowledge-graph@1/dist/index.umd.js"></script>
   <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
-  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.umd.js"></script>
   <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
   <script src="https://unpkg.com/react-dnd@16/dist/umd/ReactDnD.min.js"></script>
   <script src="https://unpkg.com/react-dnd-html5-backend@16/dist/umd/ReactDnDHTML5Backend.min.js"></script>
@@ -567,12 +567,13 @@ function createPreviewDocument(code) {
       'reactflow/dist/style.css': {},
       'react-knowledge-graph': window.ReactKnowledgeGraph,
       recharts: window.Recharts,
-      'framer-motion': window.FramerMotion,
+      'framer-motion': window.framerMotion || window.FramerMotion,
+      'framer-motion/dist/framer-motion': window.framerMotion || window.FramerMotion,
+      '@framer-motion/react': window.framerMotion || window.FramerMotion,
       'react-spring': window.ReactSpring,
       'react-dnd': window.ReactDnD,
       'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
-      '@react-spring/web': window.ReactSpring,
-      '@framer-motion/react': window.FramerMotion
+      '@react-spring/web': window.ReactSpring
     };
 
     const require = (name) => {
