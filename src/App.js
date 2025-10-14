@@ -522,6 +522,7 @@ function createPreviewDocument(code) {
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -583,6 +584,21 @@ function createPreviewDocument(code) {
 
       if (name.startsWith('tailwindcss')) {
         return {};
+      }
+
+      if (name === 'lucide-react' || name.startsWith('lucide-react/')) {
+        const lucide = window.lucideReact || window.LucideReact || window.lucide;
+        if (!lucide) {
+          throw new Error('Lucide icons failed to load in preview');
+        }
+
+        const icons = lucide.icons ?? {};
+        return {
+          ...lucide,
+          ...icons,
+          default: lucide,
+          icons
+        };
       }
 
       if (moduleMap[name]) {

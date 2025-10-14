@@ -7,15 +7,20 @@ export const PROMPT_TEMPLATES = {
 STRICT RULES:
 - Use React hooks, no class components
 - Include all imports at top
-- Make it responsive and beautiful with professional design
+- Make it responsive and beautiful with premium SaaS design
 - Single functional component export
 - Browser-compatible
 - ALWAYS use Tailwind CSS classes for styling
-- Use modern design patterns: rounded corners, subtle shadows, proper spacing
-- Implement consistent color scheme using primary-500, gray-100, gray-800, etc.
-- Add hover states and smooth transitions
-- Use Inter font family (already loaded)
-- Ensure proper contrast and accessibility
+- Use modern design patterns: glassmorphism cards, layered gradients, generous spacing
+- Implement consistent color palette using 
+  - backgrounds: bg-slate-950, bg-slate-900, bg-slate-800, bg-slate-100
+  - surfaces: bg-white, bg-white/80, bg-white/90, bg-primary-500
+  - accents: primary-500, primary-600, cyan-400, sky-500
+- Add hover states and smooth transitions on interactive elements
+- Use Inter font family (already loaded) for typography hierarchy
+- Include iconography using Lucide (via CDN) for clarity
+- Provide polished micro-interactions with subtle animations
+- Ensure proper contrast, accessible color usage, keyboard-friendly controls
 - Output ONLY working React JSX code (no markdown or commentary).
 - Provide complete state, handlers, and sample data so the app runs instantly in the browser.
 - Never prompt the user for API keys. The environment already supplies one.
@@ -28,14 +33,17 @@ STRICT RULES:
 {AI_FEATURES}
 
 STYLING REQUIREMENTS:
-- Use bg-white, bg-gray-50, bg-gray-100 for backgrounds
-- Use shadow-soft, shadow-lg for elevation
-- Use rounded-lg, rounded-xl for modern corners
-- Use text-gray-900, text-gray-600, text-gray-500 for text hierarchy
-- Use primary-500, primary-600 for accent colors
-- Add hover:bg-gray-50, hover:shadow-lg for interactions
-- Use proper spacing: p-4, p-6, p-8, gap-4, gap-6
-- Make it look like a professional SaaS application
+- Layout: responsive grid or flex with vertical rhythm (gap-6, gap-8, gap-10)
+- Surfaces: gradient hero sections + layered cards with shadow-soft, shadow-lg
+- Corners: rounded-2xl, rounded-3xl for modern cards and buttons
+- Typography: text-slate-900, text-slate-300, text-slate-500 for hierarchy
+- Buttons: gradient backgrounds, hover:-translate-y-0.5, hover:shadow-xl
+- Cards: bg-white/90 backdrops with border border-white/10 or border-slate-200
+- Animations: use framer-motion for entrance animations and button feedback when relevant
+- Icons: incorporate Lucide icons (loaded via CDN) for primary actions/sections
+- Weather-specific: include realistic weather iconography, temperature gradients, forecast cards
+- Music/AI/analytics: use charts (Recharts), progress rings, and stat badges when referenced
+- Make it look like a premium polished product ready for launch
 
 Return complete working code:`
   },
