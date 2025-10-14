@@ -1,14 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Copy, Download, Eye, Code, CheckCircle } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
-const CodeViewer = ({ app }) => {
+const CodeViewer = ({ app, onCodeChange }) => {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('formatted'); // 'formatted' or 'raw'
+  const [localCode, setLocalCode] = useState(app?.code || '');
+
+  useEffect(() => {
+    setLocalCode(app?.code || '');
+  }, [app?.code]);
+
+  const handleCodeChange = useMemo(() => {
+    return (value) => {
+      setLocalCode(value);
+      onCodeChange?.(value);
+    };
+  }, [onCodeChange]);
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(app.code);
+      await navigator.clipboard.writeText(localCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -17,7 +29,7 @@ const CodeViewer = ({ app }) => {
   };
 
   const downloadCode = () => {
-    const blob = new Blob([app.code], { type: 'text/javascript' });
+    const blob = new Blob([localCode], { type: 'text/javascript' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -104,9 +116,9 @@ ${app.template}
           <div className="flex items-center space-x-4 text-sm text-gray-300">
             <span>App: {app.appIdea}</span>
             <span>•</span>
-            <span>Lines: {app.code.split('\n').length}</span>
+            <span>Lines: {localCode.split('\n').length}</span>
             <span>•</span>
-            <span>Size: {(new Blob([app.code]).size / 1024).toFixed(1)} KB</span>
+            <span>Size: {(new Blob([localCode]).size / 1024).toFixed(1)} KB</span>
           </div>
         </div>
         
@@ -185,10 +197,11 @@ ${app.template}
           {viewMode === 'formatted' ? (
             <Editor
               defaultLanguage="javascript"
-              value={app.code}
+              value={localCode}
+              onChange={handleCodeChange}
               theme="vs-dark"
               options={{
-                readOnly: true,
+                readOnly: false,
                 fontSize: 14,
                 lineNumbers: 'on',
                 minimap: { enabled: true },
@@ -201,7 +214,7 @@ ${app.template}
             />
           ) : (
             <pre className="h-full overflow-auto p-6 text-sm text-gray-300 font-mono bg-gray-900">
-              <code>{app.code}</code>
+              <code>{localCode}</code>
             </pre>
           )}
         </div>

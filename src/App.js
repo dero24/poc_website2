@@ -9,14 +9,33 @@ import {
 
 const h = React.createElement;
 
-const EXAMPLE_IDEAS = [
-  'AI productivity hub with task insights and focus music',
-  'Mood-based recipe recommender with pantry inventory',
-  'Interactive workout planner with adaptive difficulty',
-  'Financial wellness dashboard with smart savings goals',
-  'AI storytelling studio with character memory',
-  'Habit tracker with celebratory streak animations'
-];
+function generateAIIdeas(apiKey, modelKey) {
+  return groqService.generateCode(`Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`, modelKey)
+    .then(response => {
+      try {
+        const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const ideas = JSON.parse(cleaned);
+        return Array.isArray(ideas) ? ideas.slice(0, 6) : [];
+      } catch {
+        return [
+          'AI productivity hub with task insights and focus music',
+          'Mood-based recipe recommender with pantry inventory',
+          'Interactive workout planner with adaptive difficulty',
+          'Financial wellness dashboard with smart savings goals',
+          'AI storytelling studio with character memory',
+          'Habit tracker with celebratory streak animations'
+        ];
+      }
+    })
+    .catch(() => [
+      'AI productivity hub with task insights and focus music',
+      'Mood-based recipe recommender with pantry inventory',
+      'Interactive workout planner with adaptive difficulty',
+      'Financial wellness dashboard with smart savings goals',
+      'AI storytelling studio with character memory',
+      'Habit tracker with celebratory streak animations'
+    ]);
+}
 
 function App() {
   const [activeView, setActiveView] = useState('generate');
@@ -31,6 +50,15 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
   const [versions, setVersions] = useState([]);
+  const [aiIdeas, setAiIdeas] = useState([
+    'AI productivity hub with task insights and focus music',
+    'Mood-based recipe recommender with pantry inventory',
+    'Interactive workout planner with adaptive difficulty',
+    'Financial wellness dashboard with smart savings goals',
+    'AI storytelling studio with character memory',
+    'Habit tracker with celebratory streak animations'
+  ]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
 
   const refreshHistory = useCallback(() => {
     setVersions(versionService.getAllVersions());
@@ -180,6 +208,27 @@ function App() {
     versionService.exportVersion(id);
   }, []);
 
+  const handleCodeChange = useCallback((newCode) => {
+    if (generatedApp) {
+      const updatedApp = { ...generatedApp, code: newCode };
+      setGeneratedApp(updatedApp);
+      versionService.setCurrentApp(updatedApp);
+    }
+  }, [generatedApp]);
+
+  const refreshAIIdeas = useCallback(async () => {
+    if (!apiKey) return;
+    setLoadingIdeas(true);
+    try {
+      const newIdeas = await generateAIIdeas(apiKey, modelKey);
+      setAiIdeas(newIdeas);
+    } catch (error) {
+      console.error('Failed to generate AI ideas:', error);
+    } finally {
+      setLoadingIdeas(false);
+    }
+  }, [apiKey, modelKey]);
+
   return h('div', { className: 'min-h-screen flex flex-col' }, [
     h(Header, {
       activeView,
@@ -198,7 +247,10 @@ function App() {
             onGenerate: handleGenerate,
             modelOptions,
             errorMessage,
-            onUseExample: setAppIdea
+            onUseExample: setAppIdea,
+            aiIdeas,
+            onRefreshIdeas: refreshAIIdeas,
+            loadingIdeas
           })
         : null,
       activeView === 'preview' && generatedApp
@@ -207,7 +259,10 @@ function App() {
           })
         : null,
       activeView === 'code' && generatedApp
-        ? h(CodeViewer, { app: generatedApp })
+        ? h(CodeViewer, { 
+            app: generatedApp,
+            onCodeChange: handleCodeChange
+          })
         : null,
       activeView === 'history'
         ? h(VersionHistory, {
@@ -277,7 +332,10 @@ function AppGenerator({
   onGenerate,
   modelOptions,
   errorMessage,
-  onUseExample
+  onUseExample,
+  aiIdeas,
+  onRefreshIdeas,
+  loadingIdeas
 }) {
   return h('section', { className: 'bg-white/5 border border-white/10 rounded-3xl shadow-2xl shadow-iris/20 backdrop-blur-lg p-8 space-y-8' }, [
     h('div', { className: 'text-center space-y-3' }, [
@@ -315,8 +373,15 @@ function AppGenerator({
         ])
       ]),
       h('div', { className: 'space-y-2' }, [
-        h('h3', { className: 'text-sm font-medium uppercase tracking-wide text-white/60' }, 'Need a spark?'),
-        h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, EXAMPLE_IDEAS.map((idea, index) =>
+        h('div', { className: 'flex items-center justify-between mb-3' }, [
+          h('h3', { className: 'text-sm font-medium uppercase tracking-wide text-white/60' }, 'Need a spark?'),
+          h('button', {
+            onClick: onRefreshIdeas,
+            disabled: loadingIdeas,
+            className: 'px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all disabled:opacity-50'
+          }, loadingIdeas ? 'Generating...' : '🔄 Refresh')
+        ]),
+        h('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-3' }, aiIdeas.map((idea, index) =>
           h('button', {
             key: `idea-${index}`,
             onClick: () => onUseExample(idea),
@@ -348,6 +413,14 @@ function FormSelect({ label, value, onChange, options }) {
 
 function LivePreview({ app }) {
   const previewDocument = useMemo(() => createPreviewDocument(app.code), [app.code]);
+
+  useEffect(() => {
+    // Auto-refresh preview when code changes
+    const iframe = document.querySelector('iframe[title="Generated application preview"]');
+    if (iframe) {
+      iframe.src = iframe.src; // Force reload
+    }
+  }, [app.code]);
 
   return h('section', { className: 'bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl shadow-iris/20' }, [
     h('div', { className: 'flex items-center justify-between px-6 py-4 border-b border-white/10' }, [
