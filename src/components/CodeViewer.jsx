@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Copy, Download, Eye, Code, CheckCircle } from 'lucide-react';
+import { Copy, Download, Eye, Code, CheckCircle, Save } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
 const CodeViewer = ({ app, onCodeChange }) => {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('formatted'); // 'formatted' or 'raw'
   const [localCode, setLocalCode] = useState(app?.code || '');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setLocalCode(app?.code || '');
@@ -14,9 +16,17 @@ const CodeViewer = ({ app, onCodeChange }) => {
   const handleCodeChange = useMemo(() => {
     return (value) => {
       setLocalCode(value);
-      onCodeChange?.(value);
+      setHasChanges(value !== app?.code);
+      setSaved(false);
+      // Auto-save changes with debounce
+      clearTimeout(window.codeChangeTimeout);
+      window.codeChangeTimeout = setTimeout(() => {
+        onCodeChange?.(value);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }, 500);
     };
-  }, [onCodeChange]);
+  }, [onCodeChange, app?.code]);
 
   const copyToClipboard = async () => {
     try {
@@ -112,7 +122,10 @@ ${app.template}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Generated Code</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            <Code className="w-6 h-6 inline mr-2" />
+            Editable Code
+          </h2>
           <div className="flex items-center space-x-4 text-sm text-gray-300">
             <span>App: {app.appIdea}</span>
             <span>•</span>
@@ -120,9 +133,26 @@ ${app.template}
             <span>•</span>
             <span>Size: {(new Blob([localCode]).size / 1024).toFixed(1)} KB</span>
           </div>
+          <p className="text-xs text-gray-400 mt-1">
+            ✏️ Edit code directly - changes auto-save and update the preview in real-time
+          </p>
         </div>
         
         <div className="flex items-center space-x-3">
+          {/* Save Status */}
+          {saved && (
+            <div className="flex items-center space-x-2 text-green-400 text-sm">
+              <CheckCircle className="w-4 h-4" />
+              <span>Saved & Updated Preview</span>
+            </div>
+          )}
+          {hasChanges && !saved && (
+            <div className="flex items-center space-x-2 text-yellow-400 text-sm">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+              <span>Auto-saving...</span>
+            </div>
+          )}
+          
           {/* View Mode Toggle */}
           <div className="flex bg-white/10 rounded-lg p-1">
             <button

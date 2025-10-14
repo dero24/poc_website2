@@ -166,20 +166,17 @@ const LivePreview = ({ app }) => {
 
     window.addEventListener('message', handleMessage);
 
-    // Load the preview with a small delay to ensure DOM is ready
-    const timer = setTimeout(() => {
-      const iframe = iframeRef.current;
-      if (iframe) {
-        const htmlContent = createPreviewHTML(app.code);
-        iframe.srcdoc = htmlContent;
-      }
-    }, 100);
+    // Load the preview immediately when code changes
+    const iframe = iframeRef.current;
+    if (iframe) {
+      const htmlContent = createPreviewHTML(app.code);
+      iframe.srcdoc = htmlContent;
+    }
 
     return () => {
       window.removeEventListener('message', handleMessage);
-      clearTimeout(timer);
     };
-  }, [app?.code, app?.timestamp]); // Added timestamp to force refresh on code changes
+  }, [app?.code]); // Refresh whenever code changes
 
   const refreshPreview = () => {
     if (iframeRef.current && app?.code) {
