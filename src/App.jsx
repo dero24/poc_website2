@@ -14,15 +14,9 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [aiIdeas, setAiIdeas] = useState([
-    'AI productivity hub with task insights and focus music',
-    'Mood-based recipe recommender with pantry inventory',
-    'Interactive workout planner with adaptive difficulty',
-    'Financial wellness dashboard with smart savings goals',
-    'AI storytelling studio with character memory',
-    'Habit tracker with celebratory streak animations'
-  ]);
+  const [aiIdeas, setAiIdeas] = useState([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [initialIdeasLoaded, setInitialIdeasLoaded] = useState(false);
 
   useEffect(() => {
     // Check for stored API key
@@ -30,8 +24,20 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      // Generate initial AI ideas when API key is available
+      generateInitialAIIdeas(storedKey);
     } else {
       setShowApiModal(true);
+      // Set fallback ideas if no API key
+      setAiIdeas([
+        'AI productivity hub with task insights and focus music',
+        'Mood-based recipe recommender with pantry inventory',
+        'Interactive workout planner with adaptive difficulty',
+        'Financial wellness dashboard with smart savings goals',
+        'AI storytelling studio with character memory',
+        'Habit tracker with celebratory streak animations'
+      ]);
+      setInitialIdeasLoaded(true);
     }
 
     // Load current app if exists
@@ -47,6 +53,8 @@ function App() {
     groqService.setApiKey(key);
     localStorage.setItem('groq-api-key', key);
     setShowApiModal(false);
+    // Generate AI ideas immediately after API key is set
+    generateInitialAIIdeas(key);
   };
 
   const handleAppGenerated = (appData) => {
@@ -66,6 +74,35 @@ function App() {
       const updatedApp = { ...generatedApp, code: newCode };
       setGeneratedApp(updatedApp);
       versionService.setCurrentApp(updatedApp);
+    }
+  };
+
+  const generateInitialAIIdeas = async (key) => {
+    setLoadingIdeas(true);
+    try {
+      const response = await groqService.generateCode(
+        `Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`,
+        'llama-3.1-70b-versatile'
+      );
+      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const ideas = JSON.parse(cleaned);
+      if (Array.isArray(ideas)) {
+        setAiIdeas(ideas.slice(0, 6));
+      }
+    } catch (error) {
+      console.error('Failed to generate initial AI ideas:', error);
+      // Use fallback ideas on error
+      setAiIdeas([
+        'AI productivity hub with task insights and focus music',
+        'Mood-based recipe recommender with pantry inventory',
+        'Interactive workout planner with adaptive difficulty',
+        'Financial wellness dashboard with smart savings goals',
+        'AI storytelling studio with character memory',
+        'Habit tracker with celebratory streak animations'
+      ]);
+    } finally {
+      setLoadingIdeas(false);
+      setInitialIdeasLoaded(true);
     }
   };
 
