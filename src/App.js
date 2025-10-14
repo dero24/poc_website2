@@ -587,7 +587,10 @@ function LoadingOverlay() {
 }
 
 function createPreviewDocument(code) {
-  const base64 = btoa(unescape(encodeURIComponent(code)));
+  // Inject the GROQ API key into the code
+  const apiKey = localStorage.getItem('groq-api-key') || '';
+  const codeWithApiKey = code.replace(/\{API_KEY\}/g, apiKey);
+  const base64 = btoa(unescape(encodeURIComponent(codeWithApiKey)));
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -600,6 +603,11 @@ function createPreviewDocument(code) {
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
   <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.umd.js"></script>
+  <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
   <style>
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
     .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
@@ -628,7 +636,28 @@ function createPreviewDocument(code) {
       'react-router-dom': window.ReactRouterDOM,
       'react-router-dom/client': window.ReactRouterDOM,
       'react-router-dom/server': window.ReactRouterDOM,
-      'react-router': window.ReactRouterDOM
+      'react-router': window.ReactRouterDOM,
+      'lucide-react': window.lucideReact || window.LucideReact || {},
+      recharts: window.Recharts || {},
+      marked: window.marked || {},
+      'framer-motion': window.framerMotion || window.FramerMotion || {
+        motion: {
+          div: React.forwardRef((props, ref) => React.createElement('div', { ...props, ref })),
+          span: React.forwardRef((props, ref) => React.createElement('span', { ...props, ref })),
+          button: React.forwardRef((props, ref) => React.createElement('button', { ...props, ref })),
+          section: React.forwardRef((props, ref) => React.createElement('section', { ...props, ref })),
+          h1: React.forwardRef((props, ref) => React.createElement('h1', { ...props, ref })),
+          h2: React.forwardRef((props, ref) => React.createElement('h2', { ...props, ref })),
+          h3: React.forwardRef((props, ref) => React.createElement('h3', { ...props, ref })),
+          p: React.forwardRef((props, ref) => React.createElement('p', { ...props, ref })),
+          img: React.forwardRef((props, ref) => React.createElement('img', { ...props, ref })),
+          a: React.forwardRef((props, ref) => React.createElement('a', { ...props, ref })),
+          ul: React.forwardRef((props, ref) => React.createElement('ul', { ...props, ref })),
+          li: React.forwardRef((props, ref) => React.createElement('li', { ...props, ref }))
+        },
+        AnimatePresence: ({ children }) => children
+      },
+      'react-spring': window.ReactSpring || {}
     };
 
     const require = (name) => {
@@ -649,7 +678,8 @@ function createPreviewDocument(code) {
         return moduleMap[trimmed];
       }
 
-      throw new Error('Unsupported import in preview: ' + name);
+      console.warn('Unsupported import in preview:', name);
+      return {};
     };
 
     const exports = {};

@@ -7,91 +7,122 @@ const LivePreview = ({ app }) => {
   const iframeRef = useRef(null);
 
   const createPreviewHTML = (code) => {
-    return `
-<!DOCTYPE html>
+    // Inject the GROQ API key into the code
+    const apiKey = localStorage.getItem('groq-api-key') || '';
+    const codeWithApiKey = code.replace(/\{API_KEY\}/g, apiKey);
+    const encoded = btoa(unescape(encodeURIComponent(codeWithApiKey)));
+    
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated App Preview</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
-        .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
-        .error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
-        .error-message { color: #744210; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morphic Web Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.umd.js"></script>
+  <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
+    .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
-        
-        // Error Boundary Component
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false, error: null };
-            }
-            
-            static getDerivedStateFromError(error) {
-                return { hasError: true, error };
-            }
-            
-            componentDidCatch(error, errorInfo) {
-                console.error('Preview Error:', error, errorInfo);
-            }
-            
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="error-boundary">
-                            <div className="error-title">⚠️ Preview Error</div>
-                            <div className="error-message">
-                                {this.state.error?.message || 'Something went wrong in the preview'}
-                            </div>
-                        </div>
-                    );
-                }
-                
-                return this.props.children;
-            }
-        }
-        
-        // Generated App Code
-        ${code}
-        
-        // Render the app
-        try {
-            const AppComponent = typeof App !== 'undefined' ? App : 
-                               typeof GeneratedApp !== 'undefined' ? GeneratedApp :
-                               function DefaultApp() {
-                                   return React.createElement('div', {
-                                       className: 'p-8 text-center'
-                                   }, 'App component not found');
-                               };
-            
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(
-                React.createElement(ErrorBoundary, null,
-                    React.createElement(AppComponent)
-                )
-            );
-            
-            // Signal successful load
-            window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
-        } catch (error) {
-            console.error('Render error:', error);
-            window.parent.postMessage({ 
-                type: 'preview-error', 
-                error: error.message 
-            }, '*');
-        }
-    </script>
+  <div id="root"></div>
+  <script type="module">
+    const raw = decodeURIComponent(escape(window.atob('${encoded}')));
+    const transformed = Babel.transform(raw, {
+      presets: [
+        ['env', { modules: 'commonjs' }],
+        'react'
+      ],
+      sourceType: 'module'
+    }).code;
+
+    const moduleMap = {
+      react: React,
+      'react-dom': ReactDOM,
+      'react-dom/client': ReactDOM,
+      'react/jsx-runtime': React,
+      axios: window.axios,
+      'axios/index': window.axios,
+      'axios/default': window.axios,
+      'react-router-dom': window.ReactRouterDOM,
+      'react-router-dom/client': window.ReactRouterDOM,
+      'react-router-dom/server': window.ReactRouterDOM,
+      'react-router': window.ReactRouterDOM,
+      'lucide-react': window.lucideReact || window.LucideReact || {},
+      recharts: window.Recharts || {},
+      marked: window.marked || {},
+      'framer-motion': window.framerMotion || window.FramerMotion || {
+        motion: {
+          div: React.forwardRef((props, ref) => React.createElement('div', { ...props, ref })),
+          span: React.forwardRef((props, ref) => React.createElement('span', { ...props, ref })),
+          button: React.forwardRef((props, ref) => React.createElement('button', { ...props, ref })),
+          section: React.forwardRef((props, ref) => React.createElement('section', { ...props, ref })),
+          h1: React.forwardRef((props, ref) => React.createElement('h1', { ...props, ref })),
+          h2: React.forwardRef((props, ref) => React.createElement('h2', { ...props, ref })),
+          h3: React.forwardRef((props, ref) => React.createElement('h3', { ...props, ref })),
+          p: React.forwardRef((props, ref) => React.createElement('p', { ...props, ref })),
+          img: React.forwardRef((props, ref) => React.createElement('img', { ...props, ref })),
+          a: React.forwardRef((props, ref) => React.createElement('a', { ...props, ref })),
+          ul: React.forwardRef((props, ref) => React.createElement('ul', { ...props, ref })),
+          li: React.forwardRef((props, ref) => React.createElement('li', { ...props, ref }))
+        },
+        AnimatePresence: ({ children }) => children
+      },
+      'react-spring': window.ReactSpring || {}
+    };
+
+    const require = (name) => {
+      if (name.endsWith('.css')) {
+        return {};
+      }
+
+      if (name.startsWith('tailwindcss')) {
+        return {};
+      }
+
+      if (moduleMap[name]) {
+        return moduleMap[name];
+      }
+
+      const trimmed = name.replace(/\.js$/i, '');
+      if (moduleMap[trimmed]) {
+        return moduleMap[trimmed];
+      }
+
+      console.warn('Unsupported import in preview:', name);
+      return {};
+    };
+
+    const exports = {};
+    const module = { exports };
+
+    try {
+      const fn = new Function('exports', 'module', 'require', 'React', 'ReactDOM', transformed);
+      fn(exports, module, require, React, ReactDOM);
+    } catch (error) {
+      console.error('Preview execution error', error);
+      window.__morphic_error = error;
+    }
+
+    const candidate = module.exports?.default || exports.default || window.App || window.GeneratedApp;
+    const RootComponent = candidate || (() => React.createElement('div', { className: 'fallback-shell' }, [
+      React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
+      React.createElement('div', { key: 'message' }, window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.')
+    ]));
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(RootComponent));
+  </script>
 </body>
 </html>`;
   };

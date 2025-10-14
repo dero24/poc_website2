@@ -1,17 +1,18 @@
 // Optimized prompt templates for token efficiency
-const ALLOWED_IMPORTS = 'react, react-dom (already provided via CDN) and Tailwind CSS classes';
+const ALLOWED_IMPORTS = 'react, react-dom (via CDN), tailwindcss (global), lucide-react, axios, framer-motion, marked, recharts, react-router-dom, react-spring';
 
 export const PROMPT_TEMPLATES = {
   base: {
     name: "Basic App",
-    template: `Build a single-file React 18 app for {APP_IDEA}.
+    template: `Create a production-ready React 18 single-file app for {APP_IDEA}.
 
 REQUIREMENTS:
-- Output JSX only; declare function App() and end with export default App.
-- Use React hooks and Tailwind CSS utilities for layout and styling.
-- Keep all data client-side with sample objects; avoid API calls unless using Groq.
-- Do not import packages beyond ${ALLOWED_IMPORTS}. Implement icons/visuals with Tailwind, emoji, or inline SVG.
-- Provide responsive sections, accessible labels, loading and empty states.
+- Output JSX only; declare function App() and finish with export default App.
+- Use React hooks for all state/effects and Tailwind CSS utilities for layout, spacing, and color.
+- Place every import at the top and restrict to ${ALLOWED_IMPORTS}. If you need icons or charts, use lucide-react and recharts from that list.
+- Keep the experience self-contained with inline sample data. Never reference packages that require bundlers or npm install.
+- Provide responsive sections, semantic HTML, accessible labels, and polished empty/loading states.
+- When AI is appropriate, weave it naturally into the workflow (planners, generators, smart insights) instead of bolting on chat.
 {AI_FEATURES}
 
 Return the full source code:`
@@ -19,14 +20,14 @@ Return the full source code:`
 
   aiChat: {
     name: "AI Chat App",
-    template: `Build a React 18 chat assistant for {APP_IDEA}.
+    template: `Create a React 18 assistant for {APP_IDEA} that feels intentional and helpful.
 
 REQUIREMENTS:
-- Follow the base rules (hooks + Tailwind, App component, no extra imports).
-- Include chat history, user message input, submit handler, and scrolling transcript.
-- Show typing/loading indicators and friendly error messages when Groq fails.
-- Design the AI persona to act as a focused expert for this domain (planner, tutor, analyst, etc.).
-- Keep prompts grounded in the app's mission so replies stay on-topic and actionable.
+- Follow the base rules (hooks + Tailwind, App component, approved imports only).
+- Present chat history, scrollable transcript, user input, send button, and keyboard submit handling.
+- Display typing indicators, optimistic UI for user messages, and clear error banners when Groq fails.
+- Define a concise system prompt/persona aligned to the app theme so responses remain on-task and safe.
+- Include quick action buttons or prompt templates that showcase the assistant's specialty (e.g., planning, tutoring, analysis).
 {AI_FEATURES}
 
 Return JSX only:`
@@ -34,14 +35,14 @@ Return JSX only:`
 
   dashboard: {
     name: "Dashboard App",
-    template: `Build a responsive dashboard for {APP_IDEA}.
+    template: `Create a responsive insight dashboard for {APP_IDEA}.
 
 REQUIREMENTS:
-- Follow the base rules (hooks + Tailwind, App component, no extra imports).
-- Use Tailwind grids/cards to present metrics, lists, and quick filters.
-- Provide sample data arrays and derived stats (totals, trends, badges) without external APIs.
-- Offer interactive affordances (tab/filter state) and empty-state messaging.
-- When AI is included, have it generate insights, summaries, or action plans instead of generic chat.
+- Follow the base rules (hooks + Tailwind, App component, approved imports only).
+- Use Tailwind grids/cards to present KPIs, tables, lists, and quick filters with hover/tap affordances.
+- Supply realistic sample data arrays plus derived stats (totals, deltas, badges) so visuals feel alive offline.
+- Include interactivity such as tabs, filters, or timeframe toggles with persisted state.
+- If AI is included, have it generate summaries, action items, forecasts, or anomaly explanations—not free-form chat.
 {AI_FEATURES}
 
 Return JSX only:`
@@ -49,14 +50,14 @@ Return JSX only:`
 
   game: {
     name: "Interactive Game",
-    template: `Build a miniature React game for {APP_IDEA}.
+    template: `Create a delightful React mini-game for {APP_IDEA}.
 
 REQUIREMENTS:
-- Follow the base rules (hooks + Tailwind, App component, no extra imports).
-- Track score/progress in state and reset/restart flows.
-- Handle keyboard or button input and provide win/lose feedback plus animations using Tailwind transitions.
-- Inline any assets (emoji, gradients); no external fetches.
-- Optional AI features should enhance gameplay (e.g., adaptive hints, story narration), not default chat.
+- Follow the base rules (hooks + Tailwind, App component, approved imports only).
+- Track score, progress, and streaks in state. Provide restart/reset controls and celebratory feedback.
+- Handle keyboard/mouse/touch input as appropriate. Use Tailwind transitions/utilities for moment-to-moment animation.
+- Inline all assets (emoji, gradients, SVG snippets) so the game works instantly without fetches.
+- If AI appears, let it drive adaptive hints, story narration, or content generation that matches the theme—never generic chat.
 {AI_FEATURES}
 
 Return JSX only:`
@@ -64,14 +65,14 @@ Return JSX only:`
 
   utility: {
     name: "Utility Tool",
-    template: `Build a React utility for {APP_IDEA}.
+    template: `Create a polished React utility for {APP_IDEA} that feels like a focused productivity aid.
 
 REQUIREMENTS:
-- Follow the base rules (hooks + Tailwind, App component, no extra imports).
-- Accept user inputs, validate them, and display computed results instantly.
-- Explain how calculations work via helper text/tooltips and include reset/clear actions.
-- Cover edge cases with helpful messages (e.g., invalid numbers, missing selections).
-- If AI is involved, let it augment the workflow (e.g., generate recommendations, craft summaries) rather than default chat.
+- Follow the base rules (hooks + Tailwind, App component, approved imports only).
+- Accept structured user input, validate interactively, and surface computed results with clear labels.
+- Provide helper text/tooltips explaining how calculations work, plus reset/clear actions.
+- Handle edge cases gracefully with inline feedback (invalid numbers, missing selections, overflows).
+- If AI is involved, let it augment the workflow (recommendations, synthesized briefs, generated assets) instead of generic chat.
 {AI_FEATURES}
 
 Return JSX only:`
@@ -80,12 +81,13 @@ Return JSX only:`
 
 export const AI_FEATURES_INJECTION = `
 GROQ USAGE:
-- Only add AI calls when the experience clearly needs them.
-- Declare const GROQ_API_KEY = '{API_KEY}' near the imports (never log or expose it).
+- Only add AI logic when it meaningfully improves the experience. Do not ask the end user for keys—the environment injects them.
+- Declare const GROQ_API_KEY = '{API_KEY}' once near the imports (never console.log it) and reuse the same helper for every call.
 - Implement async function callGroq(messages) that POSTs to https://api.groq.com/openai/v1/chat/completions with fetch.
-- Send model: '{MODEL_ID}' and an array of { role, content } messages; use temperature 0.6.
-- Manage loading/error state in React, and render responses as plain text (no unsanitized HTML).
-- Keep prompts concise and domain-specific so replies stay focused on the app's task.
+- Send model: '{MODEL_ID}', the provided messages array, and explicit parameters (temperature 0.6, max_tokens sized to the task).
+- Wrap each call with loading/error state in React. Render AI output as safe text (or sanitized markdown with marked) and provide retries.
+- Craft concise, domain-specific system/user prompts so the assistant behaves like the brain of the app (planners, analysts, storytellers, etc.).
+- Store AI responses in state so the UI stays deterministic and supports undo/reset interactions.
 `;
 
 export const FALLBACK_CODE = `
