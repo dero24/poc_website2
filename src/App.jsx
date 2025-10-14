@@ -8,6 +8,28 @@ import ApiKeyModal from './components/ApiKeyModal';
 import groqService from './services/groqService';
 import versionService from './services/versionService';
 
+const IDEA_PROMPT = `Generate 6 innovative, creative web-app ideas as a JSON array of short strings (under 60 characters each). Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Do not include explanations or markdown.`;
+
+const FALLBACK_IDEAS = [
+  'AI productivity hub with task insights and focus music',
+  'Mood-based recipe recommender with pantry inventory',
+  'Interactive workout planner with adaptive difficulty',
+  'Financial wellness dashboard with smart savings goals',
+  'AI storytelling studio with character memory',
+  'Habit tracker with celebratory streak animations'
+];
+
+function parseIdeas(text) {
+  try {
+    const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const ideas = JSON.parse(cleaned);
+    return Array.isArray(ideas) ? ideas.slice(0, 6) : FALLBACK_IDEAS;
+  } catch (error) {
+    console.warn('Failed to parse AI ideas response:', error);
+    return FALLBACK_IDEAS;
+  }
+}
+
 function App() {
   const [currentView, setCurrentView] = useState('generator');
   const [generatedApp, setGeneratedApp] = useState(null);
@@ -24,19 +46,11 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
-      // Generate initial AI ideas when API key is available
       generateInitialAIIdeas(storedKey);
     } else {
       setShowApiModal(true);
       // Set fallback ideas if no API key
-      setAiIdeas([
-        'AI productivity hub with task insights and focus music',
-        'Mood-based recipe recommender with pantry inventory',
-        'Interactive workout planner with adaptive difficulty',
-        'Financial wellness dashboard with smart savings goals',
-        'AI storytelling studio with character memory',
-        'Habit tracker with celebratory streak animations'
-      ]);
+      setAiIdeas(FALLBACK_IDEAS);
       setInitialIdeasLoaded(true);
     }
 
@@ -53,7 +67,6 @@ function App() {
     groqService.setApiKey(key);
     localStorage.setItem('groq-api-key', key);
     setShowApiModal(false);
-    // Generate AI ideas immediately after API key is set
     generateInitialAIIdeas(key);
   };
 
@@ -80,26 +93,12 @@ function App() {
   const generateInitialAIIdeas = async (key) => {
     setLoadingIdeas(true);
     try {
-      const response = await groqService.generateCode(
-        `Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`,
-        'llama-3.1-70b-versatile'
-      );
-      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const ideas = JSON.parse(cleaned);
-      if (Array.isArray(ideas)) {
-        setAiIdeas(ideas.slice(0, 6));
-      }
+      const response = await groqService.generateIdeas(IDEA_PROMPT, 'llama-3.1-70b-versatile');
+      setAiIdeas(parseIdeas(response));
     } catch (error) {
       console.error('Failed to generate initial AI ideas:', error);
       // Use fallback ideas on error
-      setAiIdeas([
-        'AI productivity hub with task insights and focus music',
-        'Mood-based recipe recommender with pantry inventory',
-        'Interactive workout planner with adaptive difficulty',
-        'Financial wellness dashboard with smart savings goals',
-        'AI storytelling studio with character memory',
-        'Habit tracker with celebratory streak animations'
-      ]);
+      setAiIdeas(FALLBACK_IDEAS);
     } finally {
       setLoadingIdeas(false);
       setInitialIdeasLoaded(true);
@@ -110,15 +109,8 @@ function App() {
     if (!apiKey) return;
     setLoadingIdeas(true);
     try {
-      const response = await groqService.generateCode(
-        `Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`,
-        'llama-3.1-70b-versatile'
-      );
-      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const ideas = JSON.parse(cleaned);
-      if (Array.isArray(ideas)) {
-        setAiIdeas(ideas.slice(0, 6));
-      }
+      const response = await groqService.generateIdeas(IDEA_PROMPT, 'llama-3.1-70b-versatile');
+      setAiIdeas(parseIdeas(response));
     } catch (error) {
       console.error('Failed to generate AI ideas:', error);
       // Keep existing ideas on error

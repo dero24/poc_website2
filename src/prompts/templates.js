@@ -2,170 +2,92 @@
 export const PROMPT_TEMPLATES = {
   base: {
     name: "Basic App",
-    template: `Create a React app: {APP_IDEA}
+    template: `Build a single-file React app: {APP_IDEA}
 
-STRICT RULES:
-- Use React hooks, no class components
-- Include all imports at top
-- Make it responsive and beautiful with premium SaaS design
-- Single functional component export
-- Browser-compatible
-- ALWAYS use Tailwind CSS classes for styling
-- Use modern design patterns: glassmorphism cards, layered gradients, generous spacing
-- Implement consistent color palette using 
-  - backgrounds: bg-slate-950, bg-slate-900, bg-slate-800, bg-slate-100
-  - surfaces: bg-white, bg-white/80, bg-white/90, bg-primary-500
-  - accents: primary-500, primary-600, cyan-400, sky-500
-- Add hover states and smooth transitions on interactive elements
-- Use Inter font family (already loaded) for typography hierarchy
-- Include iconography using Lucide (via CDN) for clarity
-- Provide polished micro-interactions with subtle animations
-- Ensure proper contrast, accessible color usage, keyboard-friendly controls
-- Output ONLY working React JSX code (no markdown or commentary).
-- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
-- CRITICAL: Ensure ALL code blocks are properly closed with matching braces {} and parentheses ()
-- CRITICAL: Always end with 'export default ComponentName;' where ComponentName matches your main function
-- Test your code structure: count opening { and closing } - they must match exactly
-- Never prompt the user for API keys. The environment already supplies one.
-- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
-- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
-- Do not expose or log the API key.
-- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
-- When using AI, always provide the model with domain context that reflects this application's purpose (e.g., weather agent, finance analyst, travel planner) so responses stay on-brand.
-- For AI chatbots, ensure proper error handling and loading states for API calls.
-- Parse AI markdown responses with the \`marked\` library and render them inside a styled container (rounded-xl, shadow-soft) for a polished look.
-- Only import dependencies that are already available via CDN in the Morphic preview environment.
-- CRITICAL: If using framer-motion, ALWAYS destructure imports like: import { motion } from 'framer-motion'
-- NEVER use default imports for framer-motion like: import motion from 'framer-motion'
-- Available packages: react, react-dom, lucide-react, recharts, axios, react-router-dom, reactflow, react-knowledge-graph, react-spring, react-dnd, marked
-- For animations, prefer simple CSS transitions or basic framer-motion components (motion.div, motion.button)
+REQUIREMENTS:
+- Output only executable JSX (no markdown or commentary).
+- Declare a single function component named App and end with 'export default App;'.
+- Use React hooks instead of class components.
+- Style with Tailwind CSS utility classes (the Tailwind CDN is already included).
+- Use sample data so the UI renders instantly without external services.
+- Only import from these globally available packages: react, react-dom, lucide-react, axios, framer-motion, marked, recharts, react-router-dom, react-spring.
+- If you use framer-motion, import it with named imports like: import { motion } from 'framer-motion'.
+- Do not reference packages that require installation or bundlers.
+- Add basic loading and empty states for asynchronous sections.
 {AI_FEATURES}
 
-STYLING REQUIREMENTS:
-- Layout: responsive grid or flex with vertical rhythm (gap-6, gap-8, gap-10)
-- Surfaces: gradient hero sections + layered cards with shadow-soft, shadow-lg
-- Corners: rounded-2xl, rounded-3xl for modern cards and buttons
-- Typography: text-slate-900, text-slate-300, text-slate-500 for hierarchy
-- Buttons: gradient backgrounds, hover:-translate-y-0.5, hover:shadow-xl
-- Cards: bg-white/90 backdrops with border border-white/10 or border-slate-200
-- Animations: use framer-motion for entrance animations and button feedback when relevant
-- Icons: incorporate Lucide icons (available globally via lucide-react CDN) for primary actions/sections
-- Weather-specific: include realistic weather iconography, temperature gradients, forecast cards
-- Music/AI/analytics: use charts (Recharts), progress rings, and stat badges when referenced
-- Make it look like a premium polished product ready for launch
-
-Return complete working code:`
+Return the full React source file:`
   },
 
   aiChat: {
     name: "AI Chat App",
-    template: `Create React chat app: {APP_IDEA}
+    template: `Build a React chat app: {APP_IDEA}
 
 REQUIREMENTS:
-- Working React JSX only
-- Use useState, useEffect hooks
-- Groq API integration with key: {API_KEY}
-- Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
-- Mobile responsive
+- Output only JSX with a default exported App component.
+- Use useState and useEffect hooks for state and side effects.
+- Layout with Tailwind CSS utilities for desktop and mobile.
+- Provide a chat transcript, input box, submit handler, and loading/error UI.
+- Use lucide-react icons for affordances when it improves clarity.
 {AI_FEATURES}
 
-API endpoint available: /api/groq/chat
-Return complete code:`
+Return the complete React component file:`
   },
 
   dashboard: {
     name: "Dashboard App", 
-    template: `Create React dashboard: {APP_IDEA}
+    template: `Build a React dashboard: {APP_IDEA}
 
-SPECS:
-- Modern dashboard layout
-- Charts/graphs if needed
-- Sidebar navigation
-- Responsive grid system
-- Tailwind CSS + Lucide icons
-- Working React hooks
-- No external data calls
+REQUIREMENTS:
+- Output JSX only with a default exported App component.
+- Organize content with responsive Tailwind grids or flex layouts.
+- Include at least one interactive panel (tabs, filters, or cards with state).
+- Use lucide-react icons and Recharts sparingly when visualization is required.
+- Provide static sample data arrays so the UI renders immediately.
 {AI_FEATURES}
 
-Output working JSX:`
+Return the complete source file:`
   },
 
   game: {
     name: "Interactive Game",
-    template: `Create React game: {APP_IDEA}
+    template: `Build a small React game: {APP_IDEA}
 
-GAME RULES:
-- Interactive gameplay
-- Score tracking
-- Game state management
-- Keyboard/mouse controls
-- Animated elements
-- Tailwind CSS styling
-- React hooks only
+REQUIREMENTS:
+- Use a functional App component with hooks for state and effects.
+- Track score or progress in state so the user can complete objectives.
+- Handle user interaction via buttons, keyboard, or mouse events.
+- Style with Tailwind CSS and add lightweight feedback animations (CSS or framer-motion).
+- Keep all assets and data inline so the game works instantly.
 {AI_FEATURES}
 
-Return playable code:`
+Return the full React component file:`
   },
 
   utility: {
     name: "Utility Tool",
-    template: `Create React utility: {APP_IDEA}
+    template: `Build a React utility: {APP_IDEA}
 
-UTILITY SPECS:
-- Functional tool interface
-- Input/output handling
-- Real-time calculations
-- Clean, minimal design
-- Form validation
-- Tailwind CSS
-- React hooks
+REQUIREMENTS:
+- Provide a functional App component that exports by default.
+- Accept user input, perform calculations or transformations, and show results instantly.
+- Include validation or helper text when the user enters invalid data.
+- Present content with Tailwind utility classes for a clean layout.
+- Keep everything client-side with inline sample data.
 {AI_FEATURES}
 
-Output working tool:`
+Return the full React source file:`
   }
 };
 
 export const AI_FEATURES_INJECTION = `
-GROQ USAGE NOTES:
-- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
-- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
-- Send the selected model '{MODEL_ID}' alongside any messages payload.
-- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
-- Never request or display the API key to the user.
-- Example fetch call:
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${GROQ_API_KEY}\`
-    },
-    body: JSON.stringify({
-      model: '{MODEL_ID}',
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.7
-    })
-  });
-
-AVAILABLE REACT PACKAGES (NO NPM INSTALL REQUIRED):
-- react, react-dom: Core React (v18)
-- lucide-react: Icons (import { IconName } from 'lucide-react')
-- recharts: Charts (import { BarChart, LineChart, etc } from 'recharts')
-- framer-motion: Animations (import { motion } from 'framer-motion' - NEVER default import)
-- react-spring: Spring animations (import { useSpring } from 'react-spring')
-- react-dnd: Drag and drop (import { useDrag } from 'react-dnd')
-- react-router-dom: Routing (import { BrowserRouter } from 'react-router-dom')
-- reactflow: Flow diagrams (import ReactFlow from 'reactflow')
-- react-knowledge-graph: Graph viz (import ReactKnowledgeGraph from 'react-knowledge-graph')
-- axios: HTTP requests (import axios from 'axios')
-- marked: Markdown parsing (import { marked } from 'marked')
-
-IMPORT RULES:
-- Use named imports for framer-motion: import { motion, AnimatePresence } from 'framer-motion'
-- Use named imports for lucide-react: import { Play, Pause, Settings } from 'lucide-react'
-- Use named imports for recharts: import { BarChart, Bar, XAxis, YAxis } from 'recharts'
-- Default imports work for: axios, reactflow, react-knowledge-graph
+AI INTEGRATION:
+- Define const GROQ_API_KEY = '{API_KEY}' once near the top (never log it).
+- Create a helper such as async function sendGroqMessage(message) that calls fetch('https://api.groq.com/openai/v1/chat/completions', {...}).
+- Pass model: '{MODEL_ID}' and a messages array that includes the user's request.
+- Return the assistant text from response.choices[0].message.content.
+- Track loading and error state so the UI stays responsive.
+- When rendering AI markdown, import { marked } from 'marked' and use dangerouslySetInnerHTML with sanitized output.
 `;
 
 export const FALLBACK_CODE = `

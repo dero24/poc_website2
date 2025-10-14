@@ -90,110 +90,46 @@ class GroqService {
       throw new Error('Groq API key not configured');
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an elite React developer. Output ONLY working React JSX code. No explanations, no markdown, no comments outside the code. The code must be immediately executable in a browser.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000,
-          stream: false
-        })
-      });
-
-      if (!response.ok) {
-        let details = '';
-        try {
-          const error = await response.json();
-          details = error?.error?.message || error?.message || '';
-        } catch (jsonError) {
-          details = response.statusText;
-        }
-        throw new Error(`Groq API error (${response.status}): ${details || 'Unexpected response'}`);
-      }
-
-      const data = await response.json();
-      const generatedCode = data.choices[0]?.message?.content;
-
-      if (!generatedCode) {
-        throw new Error('No code generated from Groq API');
-      }
-
-      return this.sanitizeCode(generatedCode);
-    } catch (error) {
-      console.error('Groq generation error:', error);
-      throw error;
+    const raw = await this.#sendChatCompletion(prompt, model);
+    if (!raw) {
+      throw new Error('No code generated from Groq API');
     }
+    return this.sanitizeCode(raw);
+  }
+
+  async generateIdeas(prompt, model = 'llama-3.1-70b-versatile') {
+    if (!this.apiKey) {
+      throw new Error('Groq API key not configured');
+    }
+
+    const raw = await this.#sendChatCompletion(prompt, model, {
+      systemPrompt: 'You generate concise JSON arrays of app ideas. Output JSON only, no commentary.'
+    });
+
+    if (!raw) {
+      throw new Error('Groq idea generation returned empty response');
+    }
+
+    return raw.trim();
   }
 
   sanitizeCode(code) {
     // Remove markdown code blocks
-    let cleaned = code.replace(/```jsx?\n?/g, '').replace(/```\n?/g, '');
-    
-    // Remove any explanatory text before/after code
+    let cleaned = code.replace(/```jsx?\s*/gi, '').replace(/```\s*/g, '');
+
+    // Trim leading instructions that are not code
     const lines = cleaned.split('\n');
-    let startIndex = 0;
-    let endIndex = lines.length - 1;
-
-    // Find first import or function/const declaration
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim().match(/^(import|export|function|const|class)/)) {
-        startIndex = i;
-        break;
-      }
+    while (lines.length && !lines[0].trim().match(/^(import|export|const|function|class|await|<)/)) {
+      lines.shift();
     }
 
-    // Find last meaningful code line
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].trim() && !lines[i].trim().startsWith('//')) {
-        endIndex = i;
-        break;
-      }
-    }
+    cleaned = lines.join('\n').trim();
 
-    cleaned = lines.slice(startIndex, endIndex + 1).join('\n');
+    // Replace invalid model references and common import mistakes
+    cleaned = cleaned.replace(/moonshotai\/kimi-k2-instruct/gi, 'llama-3.1-70b-versatile');
+    cleaned = cleaned.replace(/import\s+motion\s+from\s+'framer-motion'/g, "import { motion } from 'framer-motion'");
 
-    // Fix common issues
-    // Replace invalid model references
-    cleaned = cleaned.replace(/moonshotai\/kimi-k2-instruct/g, 'llama-3.1-70b-versatile');
-    
-    // Ensure proper framer-motion imports
-    cleaned = cleaned.replace(/import motion from 'framer-motion'/g, "import { motion } from 'framer-motion'");
-    
-    // Check for balanced braces and parentheses
-    const openBraces = (cleaned.match(/{/g) || []).length;
-    const closeBraces = (cleaned.match(/}/g) || []).length;
-    const openParens = (cleaned.match(/\(/g) || []).length;
-    const closeParens = (cleaned.match(/\)/g) || []).length;
-    
-    // If unbalanced, try to fix by adding missing closing braces
-    if (openBraces > closeBraces) {
-      const missing = openBraces - closeBraces;
-      cleaned += '\n' + '}'.repeat(missing);
-    }
-    
-    if (openParens > closeParens) {
-      const missing = openParens - closeParens;
-      cleaned += ')'.repeat(missing);
-    }
-
-    // Ensure it has a default export
     if (!cleaned.includes('export default')) {
-      // Try to find the main component and add export
       const componentMatch = cleaned.match(/(?:function|const)\s+(\w+)/);
       if (componentMatch) {
         cleaned += `\n\nexport default ${componentMatch[1]};`;
@@ -222,6 +158,53 @@ class GroqService {
     }
 
     return componentPattern.test(code) || jsxPattern.test(code);
+  }
+
+  async #sendChatCompletion(prompt, model, options = {}) {
+    const systemPrompt = options.systemPrompt || 'You are an elite React developer. Output ONLY working React JSX code. No explanations, no markdown, no comments outside the code. The code must be immediately executable in a browser.';
+
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        let details = '';
+        try {
+          const error = await response.json();
+          details = error?.error?.message || error?.message || '';
+        } catch (jsonError) {
+          details = response.statusText;
+        }
+        throw new Error(`Groq API error (${response.status}): ${details || 'Unexpected response'}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Groq generation error:', error);
+      throw error;
+    }
   }
 }
 

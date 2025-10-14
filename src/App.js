@@ -7,34 +7,37 @@ import {
   FALLBACK_CODE
 } from './prompts/templates.js';
 
+const IDEA_PROMPT = `Generate 6 innovative, creative web-app ideas as a JSON array of short strings (under 60 characters each). Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Do not include explanations or markdown.`;
+
 const h = React.createElement;
 
-function generateAIIdeas(apiKey, modelKey) {
-  return groqService.generateCode(`Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`, modelKey)
-    .then(response => {
-      try {
-        const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const ideas = JSON.parse(cleaned);
-        return Array.isArray(ideas) ? ideas.slice(0, 6) : [];
-      } catch {
-        return [
-          'AI productivity hub with task insights and focus music',
-          'Mood-based recipe recommender with pantry inventory',
-          'Interactive workout planner with adaptive difficulty',
-          'Financial wellness dashboard with smart savings goals',
-          'AI storytelling studio with character memory',
-          'Habit tracker with celebratory streak animations'
-        ];
-      }
-    })
-    .catch(() => [
-      'AI productivity hub with task insights and focus music',
-      'Mood-based recipe recommender with pantry inventory',
-      'Interactive workout planner with adaptive difficulty',
-      'Financial wellness dashboard with smart savings goals',
-      'AI storytelling studio with character memory',
-      'Habit tracker with celebratory streak animations'
-    ]);
+function parseIdeas(text) {
+  const FALLBACK_IDEAS = [
+    'AI productivity hub with task insights and focus music',
+    'Mood-based recipe recommender with pantry inventory',
+    'Interactive workout planner with adaptive difficulty',
+    'Financial wellness dashboard with smart savings goals',
+    'AI storytelling studio with character memory',
+    'Habit tracker with celebratory streak animations'
+  ];
+
+  try {
+    const trimmed = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const ideas = JSON.parse(trimmed);
+    return Array.isArray(ideas) ? ideas.slice(0, 6) : FALLBACK_IDEAS;
+  } catch (error) {
+    console.warn('Failed to parse AI ideas response:', error);
+    return FALLBACK_IDEAS;
+  }
+}
+
+function generateAIIdeas(modelKey) {
+  return groqService.generateIdeas(IDEA_PROMPT, modelKey)
+    .then(parseIdeas)
+    .catch((error) => {
+      console.error('Idea generation error:', error);
+      return parseIdeas('');
+    });
 }
 
 function App() {
@@ -62,7 +65,8 @@ function App() {
     if (!key) return;
     setLoadingIdeas(true);
     try {
-      const newIdeas = await generateAIIdeas(key, modelKey);
+      const newIdeas = await generateAIIdeas(modelKey);
+
       setAiIdeas(newIdeas);
     } catch (error) {
       console.error('Failed to generate initial AI ideas:', error);
@@ -247,7 +251,8 @@ function App() {
     if (!apiKey) return;
     setLoadingIdeas(true);
     try {
-      const newIdeas = await generateAIIdeas(apiKey, modelKey);
+      const newIdeas = await generateAIIdeas(modelKey);
+
       setAiIdeas(newIdeas);
     } catch (error) {
       console.error('Failed to generate AI ideas:', error);
