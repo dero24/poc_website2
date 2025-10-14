@@ -36,7 +36,33 @@ const LivePreview = ({ app }) => {
 </head>
 <body>
   <div id="root"></div>
-  <script type="module">
+  <script>
+    const React = window.React;
+    const ReactDOM = window.ReactDOM;
+    const Babel = window.Babel;
+    const ReactRouterDOM = window.ReactRouterDOM;
+    const lucideReact = window.lucideReact || window.LucideReact || {};
+    const markedLib = window.marked || {};
+    const Recharts = window.Recharts || {};
+    const ReactSpring = window.ReactSpring || {};
+    const framerMotion = window.framerMotion || window.FramerMotion || {
+      motion: {
+        div: React.forwardRef((props, ref) => React.createElement('div', { ...props, ref })),
+        span: React.forwardRef((props, ref) => React.createElement('span', { ...props, ref })),
+        button: React.forwardRef((props, ref) => React.createElement('button', { ...props, ref })),
+        section: React.forwardRef((props, ref) => React.createElement('section', { ...props, ref })),
+        h1: React.forwardRef((props, ref) => React.createElement('h1', { ...props, ref })),
+        h2: React.forwardRef((props, ref) => React.createElement('h2', { ...props, ref })),
+        h3: React.forwardRef((props, ref) => React.createElement('h3', { ...props, ref })),
+        p: React.forwardRef((props, ref) => React.createElement('p', { ...props, ref })),
+        img: React.forwardRef((props, ref) => React.createElement('img', { ...props, ref })),
+        a: React.forwardRef((props, ref) => React.createElement('a', { ...props, ref })),
+        ul: React.forwardRef((props, ref) => React.createElement('ul', { ...props, ref })),
+        li: React.forwardRef((props, ref) => React.createElement('li', { ...props, ref }))
+      },
+      AnimatePresence: ({ children }) => children
+    };
+
     const raw = decodeURIComponent(escape(window.atob('${encoded}')));
     const transformed = Babel.transform(raw, {
       presets: [
@@ -54,31 +80,15 @@ const LivePreview = ({ app }) => {
       axios: window.axios,
       'axios/index': window.axios,
       'axios/default': window.axios,
-      'react-router-dom': window.ReactRouterDOM,
-      'react-router-dom/client': window.ReactRouterDOM,
-      'react-router-dom/server': window.ReactRouterDOM,
-      'react-router': window.ReactRouterDOM,
-      'lucide-react': window.lucideReact || window.LucideReact || {},
-      recharts: window.Recharts || {},
-      marked: window.marked || {},
-      'framer-motion': window.framerMotion || window.FramerMotion || {
-        motion: {
-          div: React.forwardRef((props, ref) => React.createElement('div', { ...props, ref })),
-          span: React.forwardRef((props, ref) => React.createElement('span', { ...props, ref })),
-          button: React.forwardRef((props, ref) => React.createElement('button', { ...props, ref })),
-          section: React.forwardRef((props, ref) => React.createElement('section', { ...props, ref })),
-          h1: React.forwardRef((props, ref) => React.createElement('h1', { ...props, ref })),
-          h2: React.forwardRef((props, ref) => React.createElement('h2', { ...props, ref })),
-          h3: React.forwardRef((props, ref) => React.createElement('h3', { ...props, ref })),
-          p: React.forwardRef((props, ref) => React.createElement('p', { ...props, ref })),
-          img: React.forwardRef((props, ref) => React.createElement('img', { ...props, ref })),
-          a: React.forwardRef((props, ref) => React.createElement('a', { ...props, ref })),
-          ul: React.forwardRef((props, ref) => React.createElement('ul', { ...props, ref })),
-          li: React.forwardRef((props, ref) => React.createElement('li', { ...props, ref }))
-        },
-        AnimatePresence: ({ children }) => children
-      },
-      'react-spring': window.ReactSpring || {}
+      'react-router-dom': ReactRouterDOM,
+      'react-router-dom/client': ReactRouterDOM,
+      'react-router-dom/server': ReactRouterDOM,
+      'react-router': ReactRouterDOM,
+      'lucide-react': lucideReact,
+      recharts: Recharts,
+      marked: markedLib,
+      'framer-motion': framerMotion,
+      'react-spring': ReactSpring
     };
 
     const require = (name) => {
