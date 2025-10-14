@@ -167,10 +167,34 @@ class GroqService {
 
     cleaned = lines.slice(startIndex, endIndex + 1).join('\n');
 
+    // Fix common issues
+    // Replace invalid model references
+    cleaned = cleaned.replace(/moonshotai\/kimi-k2-instruct/g, 'llama-3.1-70b-versatile');
+    
+    // Ensure proper framer-motion imports
+    cleaned = cleaned.replace(/import motion from 'framer-motion'/g, "import { motion } from 'framer-motion'");
+    
+    // Check for balanced braces and parentheses
+    const openBraces = (cleaned.match(/{/g) || []).length;
+    const closeBraces = (cleaned.match(/}/g) || []).length;
+    const openParens = (cleaned.match(/\(/g) || []).length;
+    const closeParens = (cleaned.match(/\)/g) || []).length;
+    
+    // If unbalanced, try to fix by adding missing closing braces
+    if (openBraces > closeBraces) {
+      const missing = openBraces - closeBraces;
+      cleaned += '\n' + '}'.repeat(missing);
+    }
+    
+    if (openParens > closeParens) {
+      const missing = openParens - closeParens;
+      cleaned += ')'.repeat(missing);
+    }
+
     // Ensure it has a default export
     if (!cleaned.includes('export default')) {
       // Try to find the main component and add export
-      const componentMatch = cleaned.match(/function\s+(\w+)/);
+      const componentMatch = cleaned.match(/(?:function|const)\s+(\w+)/);
       if (componentMatch) {
         cleaned += `\n\nexport default ${componentMatch[1]};`;
       }
@@ -187,6 +211,15 @@ class GroqService {
 
     const componentPattern = /(function\s+\w+\s*\(|const\s+\w+\s*=\s*\(?\s*\w*\s*=>)/;
     const jsxPattern = /<\w+[\s>]/;
+    
+    // Check for balanced braces
+    const openBraces = (code.match(/{/g) || []).length;
+    const closeBraces = (code.match(/}/g) || []).length;
+    
+    if (openBraces !== closeBraces) {
+      console.warn('Code validation failed: unbalanced braces');
+      return false;
+    }
 
     return componentPattern.test(code) || jsxPattern.test(code);
   }

@@ -23,6 +23,9 @@ STRICT RULES:
 - Ensure proper contrast, accessible color usage, keyboard-friendly controls
 - Output ONLY working React JSX code (no markdown or commentary).
 - Provide complete state, handlers, and sample data so the app runs instantly in the browser.
+- CRITICAL: Ensure ALL code blocks are properly closed with matching braces {} and parentheses ()
+- CRITICAL: Always end with 'export default ComponentName;' where ComponentName matches your main function
+- Test your code structure: count opening { and closing } - they must match exactly
 - Never prompt the user for API keys. The environment already supplies one.
 - If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
 - When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.

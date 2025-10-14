@@ -137,28 +137,37 @@ const LivePreview = ({ app }) => {
       if (name === 'framer-motion' || name.startsWith('framer-motion/')) {
         const framerMotion = window.framerMotion || window.FramerMotion;
         if (!framerMotion) {
-          // Return mock framer-motion objects to prevent crashes
+          // Return comprehensive mock framer-motion objects
+          const createMotionComponent = (tag) => {
+            return React.forwardRef((props, ref) => {
+              const { initial, animate, exit, transition, whileHover, whileTap, ...restProps } = props;
+              return React.createElement(tag, { ...restProps, ref });
+            });
+          };
+          
           return {
             motion: {
-              div: 'div',
-              span: 'span', 
-              button: 'button',
-              section: 'section',
-              h1: 'h1',
-              h2: 'h2',
-              h3: 'h3',
-              p: 'p',
-              img: 'img',
-              a: 'a'
+              div: createMotionComponent('div'),
+              span: createMotionComponent('span'),
+              button: createMotionComponent('button'),
+              section: createMotionComponent('section'),
+              h1: createMotionComponent('h1'),
+              h2: createMotionComponent('h2'),
+              h3: createMotionComponent('h3'),
+              p: createMotionComponent('p'),
+              img: createMotionComponent('img'),
+              a: createMotionComponent('a'),
+              ul: createMotionComponent('ul'),
+              li: createMotionComponent('li')
             },
             AnimatePresence: ({ children }) => children,
-            useAnimation: () => ({}),
+            useAnimation: () => ({ start: () => {}, stop: () => {} }),
             useMotionValue: (initial) => ({ get: () => initial, set: () => {} }),
             useTransform: () => ({}),
             default: {
-              div: 'div',
-              span: 'span',
-              button: 'button'
+              div: createMotionComponent('div'),
+              span: createMotionComponent('span'),
+              button: createMotionComponent('button')
             }
           };
         }
@@ -183,6 +192,16 @@ const LivePreview = ({ app }) => {
     const module = { exports };
 
     try {
+      // Check if code is complete (has proper closing braces/brackets)
+      const openBraces = (raw.match(/{/g) || []).length;
+      const closeBraces = (raw.match(/}/g) || []).length;
+      const openParens = (raw.match(/\(/g) || []).length;
+      const closeParens = (raw.match(/\)/g) || []).length;
+      
+      if (openBraces !== closeBraces || openParens !== closeParens) {
+        throw new Error('Code appears incomplete - check for missing closing braces or parentheses');
+      }
+      
       const fn = new Function('exports', 'module', 'require', 'React', 'ReactDOM', transformed);
       fn(exports, module, require, React, ReactDOM);
     } catch (error) {
