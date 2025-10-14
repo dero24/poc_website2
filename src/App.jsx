@@ -14,6 +14,15 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [aiIdeas, setAiIdeas] = useState([
+    'AI productivity hub with task insights and focus music',
+    'Mood-based recipe recommender with pantry inventory',
+    'Interactive workout planner with adaptive difficulty',
+    'Financial wellness dashboard with smart savings goals',
+    'AI storytelling studio with character memory',
+    'Habit tracker with celebratory streak animations'
+  ]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
 
   useEffect(() => {
     // Check for stored API key
@@ -50,6 +59,35 @@ function App() {
     setGeneratedApp(version);
     versionService.setCurrentApp(version);
     setCurrentView('preview');
+  };
+
+  const handleCodeChange = (newCode) => {
+    if (generatedApp) {
+      const updatedApp = { ...generatedApp, code: newCode };
+      setGeneratedApp(updatedApp);
+      versionService.setCurrentApp(updatedApp);
+    }
+  };
+
+  const generateAIIdeas = async () => {
+    if (!apiKey) return;
+    setLoadingIdeas(true);
+    try {
+      const response = await groqService.generateCode(
+        `Generate 6 innovative, creative app ideas. Each should be 1 sentence, under 60 chars. Format as JSON array of strings. Examples: ["Smart garden with AI plant care", "Voice-controlled recipe assistant"]. Be creative and modern.`,
+        'llama-3.1-70b-versatile'
+      );
+      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const ideas = JSON.parse(cleaned);
+      if (Array.isArray(ideas)) {
+        setAiIdeas(ideas.slice(0, 6));
+      }
+    } catch (error) {
+      console.error('Failed to generate AI ideas:', error);
+      // Keep existing ideas on error
+    } finally {
+      setLoadingIdeas(false);
+    }
   };
 
   const navigation = [
@@ -117,6 +155,9 @@ function App() {
             isGenerating={isGenerating}
             setIsGenerating={setIsGenerating}
             onRequireApiKey={() => setShowApiModal(true)}
+            aiIdeas={aiIdeas}
+            onRefreshIdeas={generateAIIdeas}
+            loadingIdeas={loadingIdeas}
           />
         )}
         
@@ -125,7 +166,10 @@ function App() {
         )}
         
         {currentView === 'code' && generatedApp && (
-          <CodeViewer app={generatedApp} />
+          <CodeViewer 
+            app={generatedApp} 
+            onCodeChange={handleCodeChange}
+          />
         )}
         
         {currentView === 'history' && (

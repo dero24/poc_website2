@@ -7,91 +7,207 @@ const LivePreview = ({ app }) => {
   const iframeRef = useRef(null);
 
   const createPreviewHTML = (code) => {
-    return `
-<!DOCTYPE html>
+    const base64 = btoa(unescape(encodeURIComponent(code)));
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated App Preview</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
-        .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
-        .error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
-        .error-message { color: #744210; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morphic Web Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          boxShadow: { 'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)' }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+  <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
+  <script src="https://unpkg.com/react-knowledge-graph@1/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.umd.js"></script>
+  <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
+  <script src="https://unpkg.com/react-dnd@16/dist/umd/ReactDnD.min.js"></script>
+  <script src="https://unpkg.com/react-dnd-html5-backend@16/dist/umd/ReactDnDHTML5Backend.min.js"></script>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
+    .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
-        
-        // Error Boundary Component
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false, error: null };
-            }
-            
-            static getDerivedStateFromError(error) {
-                return { hasError: true, error };
-            }
-            
-            componentDidCatch(error, errorInfo) {
-                console.error('Preview Error:', error, errorInfo);
-            }
-            
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="error-boundary">
-                            <div className="error-title">⚠️ Preview Error</div>
-                            <div className="error-message">
-                                {this.state.error?.message || 'Something went wrong in the preview'}
-                            </div>
-                        </div>
-                    );
-                }
-                
-                return this.props.children;
-            }
+  <div id="root"></div>
+  <script type="module">
+    const raw = decodeURIComponent(escape(window.atob('${base64}')));
+    const transformed = Babel.transform(raw, {
+      presets: [
+        ['env', { modules: 'commonjs' }],
+        'react'
+      ],
+      sourceType: 'module'
+    }).code;
+
+    const moduleMap = {
+      react: React,
+      'react-dom': ReactDOM,
+      'react-dom/client': ReactDOM,
+      'react/jsx-runtime': React,
+      axios: window.axios,
+      'axios/index': window.axios,
+      'axios/default': window.axios,
+      'react-router-dom': window.ReactRouterDOM,
+      'react-router-dom/client': window.ReactRouterDOM,
+      'react-router-dom/server': window.ReactRouterDOM,
+      'react-router': window.ReactRouterDOM,
+      reactflow: window.ReactFlow,
+      'reactflow/dist/style.css': {},
+      'react-knowledge-graph': window.ReactKnowledgeGraph,
+      recharts: window.Recharts,
+      'framer-motion': window.framerMotion || window.FramerMotion || {},
+      'framer-motion/dist/framer-motion': window.framerMotion || window.FramerMotion || {},
+      '@framer-motion/react': window.framerMotion || window.FramerMotion || {},
+      'react-spring': window.ReactSpring,
+      'react-dnd': window.ReactDnD,
+      'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
+      '@react-spring/web': window.ReactSpring,
+      marked: window.marked,
+      'marked/marked.min': window.marked
+    };
+
+    const require = (name) => {
+      if (name.endsWith('.css')) {
+        return {};
+      }
+
+      if (name.startsWith('tailwindcss')) {
+        return {};
+      }
+
+      if (name === 'lucide-react' || name.startsWith('lucide-react/')) {
+        const lucide = window.lucideReact || window.LucideReact || window.lucide;
+        if (!lucide) {
+          console.warn('Lucide icons failed to load in preview');
+          return {};
         }
-        
-        // Generated App Code
-        ${code}
-        
-        // Render the app
-        try {
-            const AppComponent = typeof App !== 'undefined' ? App : 
-                               typeof GeneratedApp !== 'undefined' ? GeneratedApp :
-                               function DefaultApp() {
-                                   return React.createElement('div', {
-                                       className: 'p-8 text-center'
-                                   }, 'App component not found');
-                               };
-            
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(
-                React.createElement(ErrorBoundary, null,
-                    React.createElement(AppComponent)
-                )
-            );
-            
-            // Signal successful load
-            window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
-        } catch (error) {
-            console.error('Render error:', error);
-            window.parent.postMessage({ 
-                type: 'preview-error', 
-                error: error.message 
-            }, '*');
+
+        const icons = lucide.icons ?? {};
+        return {
+          ...lucide,
+          ...icons,
+          default: lucide,
+          icons
+        };
+      }
+
+      if (name === 'recharts' || name.startsWith('recharts/')) {
+        if (!window.Recharts) {
+          console.warn('Recharts failed to load in preview');
+          return {};
         }
-    </script>
+        return window.Recharts;
+      }
+
+      if (name === 'marked' || name.startsWith('marked/')) {
+        if (!window.marked) {
+          console.warn('Marked library failed to load in preview');
+          return {};
+        }
+        const marked = window.marked;
+        return {
+          ...marked,
+          default: marked,
+          marked
+        };
+      }
+
+      if (name === 'framer-motion' || name.startsWith('framer-motion/')) {
+        const framerMotion = window.framerMotion || window.FramerMotion;
+        if (!framerMotion) {
+          // Return mock framer-motion objects to prevent crashes
+          return {
+            motion: {
+              div: 'div',
+              span: 'span', 
+              button: 'button',
+              section: 'section',
+              h1: 'h1',
+              h2: 'h2',
+              h3: 'h3',
+              p: 'p',
+              img: 'img',
+              a: 'a'
+            },
+            AnimatePresence: ({ children }) => children,
+            useAnimation: () => ({}),
+            useMotionValue: (initial) => ({ get: () => initial, set: () => {} }),
+            useTransform: () => ({}),
+            default: {
+              div: 'div',
+              span: 'span',
+              button: 'button'
+            }
+          };
+        }
+        return framerMotion;
+      }
+
+      if (moduleMap[name]) {
+        return moduleMap[name];
+      }
+
+      const trimmed = name.replace(/\.js$/i, '');
+      if (moduleMap[trimmed]) {
+        return moduleMap[trimmed];
+      }
+
+      // Log unsupported imports but don't crash the app
+      console.warn('Unsupported import in preview:', name);
+      return {};
+    };
+
+    const exports = {};
+    const module = { exports };
+
+    try {
+      const fn = new Function('exports', 'module', 'require', 'React', 'ReactDOM', transformed);
+      fn(exports, module, require, React, ReactDOM);
+    } catch (error) {
+      console.error('Preview execution error', error);
+      window.__morphic_error = error;
+      window.parent.postMessage({ type: 'preview-error', error: error.message }, '*');
+      return;
+    }
+
+    const candidate = module.exports?.default || exports.default || window.App || window.GeneratedApp;
+    const RootComponent = candidate || (() => {
+      const errorMsg = window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.';
+      console.error('Preview render failed:', errorMsg);
+      return React.createElement('div', { className: 'fallback-shell' }, [
+        React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
+        React.createElement('div', { key: 'message', style: { marginBottom: '1rem' } }, 'Preview Error'),
+        React.createElement('div', { key: 'details', style: { fontSize: '0.9rem', opacity: 0.7 } }, errorMsg),
+        React.createElement('div', { key: 'help', style: { fontSize: '0.8rem', marginTop: '1rem', opacity: 0.6 } }, 'Try regenerating or check the code for syntax errors.')
+      ]);
+    });
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(RootComponent));
+    window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
+  </script>
 </body>
 </html>`;
   };
@@ -114,17 +230,20 @@ const LivePreview = ({ app }) => {
 
     window.addEventListener('message', handleMessage);
 
-    // Load the preview
-    const iframe = iframeRef.current;
-    if (iframe) {
-      const htmlContent = createPreviewHTML(app.code);
-      iframe.srcdoc = htmlContent;
-    }
+    // Load the preview with a small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      const iframe = iframeRef.current;
+      if (iframe) {
+        const htmlContent = createPreviewHTML(app.code);
+        iframe.srcdoc = htmlContent;
+      }
+    }, 100);
 
     return () => {
       window.removeEventListener('message', handleMessage);
+      clearTimeout(timer);
     };
-  }, [app?.code]);
+  }, [app?.code, app?.timestamp]); // Added timestamp to force refresh on code changes
 
   const refreshPreview = () => {
     if (iframeRef.current && app?.code) {

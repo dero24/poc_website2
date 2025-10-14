@@ -3,7 +3,7 @@ import { Sparkles, Wand2, Zap } from 'lucide-react';
 import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
 import groqService from '../services/groqService';
 
-const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey }) => {
+const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey, aiIdeas, onRefreshIdeas, loadingIdeas }) => {
   const [appIdea, setAppIdea] = useState('');
   const [selectedModel, setSelectedModel] = useState(() => {
     const models = groqService.getAvailableModels();
@@ -92,16 +92,7 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
     }
   };
 
-  const exampleIdeas = [
-    "AI-powered todo list with smart categorization",
-    "Real-time weather dashboard with beautiful animations", 
-    "Interactive memory card game with scoring",
-    "Expense tracker with visual charts and budgeting",
-    "AI chatbot for customer support",
-    "Pomodoro timer with productivity insights",
-    "Recipe finder with ingredient substitutions",
-    "Habit tracker with streak visualization"
-  ];
+  // Use AI-generated ideas passed from parent component
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -182,18 +173,36 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
           </div>
         </button>
 
-        {/* Example Ideas */}
+        {/* AI-Generated Ideas */}
         <div className="mt-8">
-          <h3 className="text-sm font-medium text-white mb-4">Need inspiration? Try these ideas:</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-white">Need a spark? AI-generated ideas:</h3>
+            <button
+              onClick={onRefreshIdeas}
+              disabled={loadingIdeas || isGenerating}
+              className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {loadingIdeas ? (
+                <>
+                  <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  🔄 Refresh
+                </>
+              )}
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {exampleIdeas.map((idea, index) => (
+            {aiIdeas.map((idea, index) => (
               <button
                 key={index}
                 onClick={() => setAppIdea(idea)}
                 className="text-left p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-gray-300 hover:text-white transition-all text-sm"
-                disabled={isGenerating}
+                disabled={isGenerating || loadingIdeas}
               >
-                {idea}
+                → {idea}
               </button>
             ))}
           </div>

@@ -20,6 +20,7 @@ trigger: always_on
 ## UI/UX Consistency
 - If you remove or add UI controls (like template or AI toggles), also adjust prompts, services, and generator components so behavior stays consistent.
 - Keep onboarding flows intact—modal triggers such as the API key splash screen must stay connected across all entry points.
+- Document the “keep App.jsx and App.js in sync” guideline in code-guide.md (or wherever you store team guardrails) so future contributors remember both entry points matter.
 
 ## Testing Checklist for Agents
 - Do not make any changes to the api key code when user enters the key as that connectivity works great.
