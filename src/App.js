@@ -522,6 +522,7 @@ function createPreviewDocument(code) {
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://unpkg.com/lucide-react@0.468.0/dist/lucide-react.umd.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -574,7 +575,9 @@ function createPreviewDocument(code) {
       'react-spring': window.ReactSpring,
       'react-dnd': window.ReactDnD,
       'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
-      '@react-spring/web': window.ReactSpring
+      '@react-spring/web': window.ReactSpring,
+      marked: window.marked,
+      'marked/marked.min': window.marked
     };
 
     const require = (name) => {
@@ -598,6 +601,25 @@ function createPreviewDocument(code) {
           ...icons,
           default: lucide,
           icons
+        };
+      }
+
+      if (name === 'recharts' || name.startsWith('recharts/')) {
+        if (!window.Recharts) {
+          throw new Error('Recharts failed to load in preview');
+        }
+        return window.Recharts;
+      }
+
+      if (name === 'marked' || name.startsWith('marked/')) {
+        if (!window.marked) {
+          throw new Error('Marked library failed to load in preview');
+        }
+        const marked = window.marked;
+        return {
+          ...marked,
+          default: marked,
+          marked
         };
       }
 

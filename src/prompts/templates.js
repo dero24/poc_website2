@@ -28,7 +28,9 @@ STRICT RULES:
 - When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
 - Do not expose or log the API key.
 - Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
+- When using AI, always provide the model with domain context that reflects this application's purpose (e.g., weather agent, finance analyst, travel planner) so responses stay on-brand.
 - For AI chatbots, ensure proper error handling and loading states for API calls.
+- Parse AI markdown responses with the \`marked\` library and render them inside a styled container (rounded-xl, shadow-soft) for a polished look.
 - Only import dependencies that are already available via CDN in the Morphic preview environment.
 {AI_FEATURES}
 
