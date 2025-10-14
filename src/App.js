@@ -80,6 +80,7 @@ function App() {
     const currentApp = versionService.getCurrentApp();
     if (currentApp) {
       setGeneratedApp(currentApp);
+      setActiveView('preview');
     }
 
     refreshHistory();
