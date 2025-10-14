@@ -32,6 +32,10 @@ STRICT RULES:
 - For AI chatbots, ensure proper error handling and loading states for API calls.
 - Parse AI markdown responses with the \`marked\` library and render them inside a styled container (rounded-xl, shadow-soft) for a polished look.
 - Only import dependencies that are already available via CDN in the Morphic preview environment.
+- CRITICAL: If using framer-motion, ALWAYS destructure imports like: import { motion } from 'framer-motion'
+- NEVER use default imports for framer-motion like: import motion from 'framer-motion'
+- Available packages: react, react-dom, lucide-react, recharts, axios, react-router-dom, reactflow, react-knowledge-graph, react-spring, react-dnd, marked
+- For animations, prefer simple CSS transitions or basic framer-motion components (motion.div, motion.button)
 {AI_FEATURES}
 
 STYLING REQUIREMENTS:
@@ -141,15 +145,24 @@ GROQ USAGE NOTES:
     })
   });
 
-AVAILABLE REACT PACKAGES:
-- reactflow: For flow diagrams and node editors
-- react-knowledge-graph: For graph visualizations  
-- recharts: For charts and data visualization
-- framer-motion: For animations and transitions
-- react-spring: For spring-based animations
-- react-dnd: For drag and drop functionality
-- react-router-dom: For routing and navigation
-- axios: For HTTP requests
+AVAILABLE REACT PACKAGES (NO NPM INSTALL REQUIRED):
+- react, react-dom: Core React (v18)
+- lucide-react: Icons (import { IconName } from 'lucide-react')
+- recharts: Charts (import { BarChart, LineChart, etc } from 'recharts')
+- framer-motion: Animations (import { motion } from 'framer-motion' - NEVER default import)
+- react-spring: Spring animations (import { useSpring } from 'react-spring')
+- react-dnd: Drag and drop (import { useDrag } from 'react-dnd')
+- react-router-dom: Routing (import { BrowserRouter } from 'react-router-dom')
+- reactflow: Flow diagrams (import ReactFlow from 'reactflow')
+- react-knowledge-graph: Graph viz (import ReactKnowledgeGraph from 'react-knowledge-graph')
+- axios: HTTP requests (import axios from 'axios')
+- marked: Markdown parsing (import { marked } from 'marked')
+
+IMPORT RULES:
+- Use named imports for framer-motion: import { motion, AnimatePresence } from 'framer-motion'
+- Use named imports for lucide-react: import { Play, Pause, Settings } from 'lucide-react'
+- Use named imports for recharts: import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+- Default imports work for: axios, reactflow, react-knowledge-graph
 `;
 
 export const FALLBACK_CODE = `

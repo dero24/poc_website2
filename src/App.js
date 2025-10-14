@@ -642,9 +642,9 @@ function createPreviewDocument(code) {
       'reactflow/dist/style.css': {},
       'react-knowledge-graph': window.ReactKnowledgeGraph,
       recharts: window.Recharts,
-      'framer-motion': window.framerMotion || window.FramerMotion,
-      'framer-motion/dist/framer-motion': window.framerMotion || window.FramerMotion,
-      '@framer-motion/react': window.framerMotion || window.FramerMotion,
+      'framer-motion': window.framerMotion || window.FramerMotion || {},
+      'framer-motion/dist/framer-motion': window.framerMotion || window.FramerMotion || {},
+      '@framer-motion/react': window.framerMotion || window.FramerMotion || {},
       'react-spring': window.ReactSpring,
       'react-dnd': window.ReactDnD,
       'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
@@ -696,6 +696,37 @@ function createPreviewDocument(code) {
         };
       }
 
+      if (name === 'framer-motion' || name.startsWith('framer-motion/')) {
+        const framerMotion = window.framerMotion || window.FramerMotion;
+        if (!framerMotion) {
+          // Return mock framer-motion objects to prevent crashes
+          return {
+            motion: {
+              div: 'div',
+              span: 'span', 
+              button: 'button',
+              section: 'section',
+              h1: 'h1',
+              h2: 'h2',
+              h3: 'h3',
+              p: 'p',
+              img: 'img',
+              a: 'a'
+            },
+            AnimatePresence: ({ children }) => children,
+            useAnimation: () => ({}),
+            useMotionValue: (initial) => ({ get: () => initial, set: () => {} }),
+            useTransform: () => ({}),
+            default: {
+              div: 'div',
+              span: 'span',
+              button: 'button'
+            }
+          };
+        }
+        return framerMotion;
+      }
+
       if (moduleMap[name]) {
         return moduleMap[name];
       }
@@ -705,7 +736,9 @@ function createPreviewDocument(code) {
         return moduleMap[trimmed];
       }
 
-      throw new Error('Unsupported import in preview: ' + name);
+      // Log unsupported imports but don't crash the app
+      console.warn('Unsupported import in preview:', name);
+      return {};
     };
 
     const exports = {};
@@ -720,10 +753,16 @@ function createPreviewDocument(code) {
     }
 
     const candidate = module.exports?.default || exports.default || window.App || window.GeneratedApp;
-    const RootComponent = candidate || (() => React.createElement('div', { className: 'fallback-shell' }, [
-      React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
-      React.createElement('div', { key: 'message' }, window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.')
-    ]));
+    const RootComponent = candidate || (() => {
+      const errorMsg = window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.';
+      console.error('Preview render failed:', errorMsg);
+      return React.createElement('div', { className: 'fallback-shell' }, [
+        React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
+        React.createElement('div', { key: 'message', style: { marginBottom: '1rem' } }, 'Preview Error'),
+        React.createElement('div', { key: 'details', style: { fontSize: '0.9rem', opacity: 0.7 } }, errorMsg),
+        React.createElement('div', { key: 'help', style: { fontSize: '0.8rem', marginTop: '1rem', opacity: 0.6 } }, 'Try regenerating or check the code for syntax errors.')
+      ]);
+    });
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(RootComponent));
