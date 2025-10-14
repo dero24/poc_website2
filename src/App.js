@@ -507,11 +507,33 @@ function createPreviewDocument(code) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Morphic Web Preview</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          boxShadow: { 'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)' }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
   <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+  <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
+  <script src="https://unpkg.com/react-knowledge-graph@1/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/react-spring@9/dist/react-spring.umd.js"></script>
+  <script src="https://unpkg.com/react-dnd@16/dist/umd/ReactDnD.min.js"></script>
+  <script src="https://unpkg.com/react-dnd-html5-backend@16/dist/umd/ReactDnDHTML5Backend.min.js"></script>
   <style>
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
     .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
@@ -540,7 +562,17 @@ function createPreviewDocument(code) {
       'react-router-dom': window.ReactRouterDOM,
       'react-router-dom/client': window.ReactRouterDOM,
       'react-router-dom/server': window.ReactRouterDOM,
-      'react-router': window.ReactRouterDOM
+      'react-router': window.ReactRouterDOM,
+      reactflow: window.ReactFlow,
+      'reactflow/dist/style.css': {},
+      'react-knowledge-graph': window.ReactKnowledgeGraph,
+      recharts: window.Recharts,
+      'framer-motion': window.FramerMotion,
+      'react-spring': window.ReactSpring,
+      'react-dnd': window.ReactDnD,
+      'react-dnd-html5-backend': window.ReactDnDHTML5Backend,
+      '@react-spring/web': window.ReactSpring,
+      '@framer-motion/react': window.FramerMotion
     };
 
     const require = (name) => {

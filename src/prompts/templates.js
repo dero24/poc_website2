@@ -7,9 +7,15 @@ export const PROMPT_TEMPLATES = {
 STRICT RULES:
 - Use React hooks, no class components
 - Include all imports at top
-- Make it responsive and beautiful
+- Make it responsive and beautiful with professional design
 - Single functional component export
 - Browser-compatible
+- ALWAYS use Tailwind CSS classes for styling
+- Use modern design patterns: rounded corners, subtle shadows, proper spacing
+- Implement consistent color scheme using primary-500, gray-100, gray-800, etc.
+- Add hover states and smooth transitions
+- Use Inter font family (already loaded)
+- Ensure proper contrast and accessibility
 - Output ONLY working React JSX code (no markdown or commentary).
 - Provide complete state, handlers, and sample data so the app runs instantly in the browser.
 - Never prompt the user for API keys. The environment already supplies one.
@@ -19,6 +25,16 @@ STRICT RULES:
 - Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
 - For AI chatbots, ensure proper error handling and loading states for API calls.
 {AI_FEATURES}
+
+STYLING REQUIREMENTS:
+- Use bg-white, bg-gray-50, bg-gray-100 for backgrounds
+- Use shadow-soft, shadow-lg for elevation
+- Use rounded-lg, rounded-xl for modern corners
+- Use text-gray-900, text-gray-600, text-gray-500 for text hierarchy
+- Use primary-500, primary-600 for accent colors
+- Add hover:bg-gray-50, hover:shadow-lg for interactions
+- Use proper spacing: p-4, p-6, p-8, gap-4, gap-6
+- Make it look like a professional SaaS application
 
 Return complete working code:`
   },
@@ -113,6 +129,16 @@ GROQ USAGE NOTES:
       temperature: 0.7
     })
   });
+
+AVAILABLE REACT PACKAGES:
+- reactflow: For flow diagrams and node editors
+- react-knowledge-graph: For graph visualizations  
+- recharts: For charts and data visualization
+- framer-motion: For animations and transitions
+- react-spring: For spring-based animations
+- react-dnd: For drag and drop functionality
+- react-router-dom: For routing and navigation
+- axios: For HTTP requests
 `;
 
 export const FALLBACK_CODE = `
