@@ -128,6 +128,38 @@ class GroqService {
     // Replace invalid model references and common import mistakes
     cleaned = cleaned.replace(/moonshotai\/kimi-k2-instruct/gi, 'llama-3.1-70b-versatile');
     cleaned = cleaned.replace(/import\s+motion\s+from\s+'framer-motion'/g, "import { motion } from 'framer-motion'");
+    cleaned = cleaned.replace(/from\s+'lucid-react'/g, "from 'lucide-react'");
+
+    const needsMotion = /\bmotion\./.test(cleaned) || /<motion\./.test(cleaned);
+    const needsAnimatePresence = /AnimatePresence/.test(cleaned);
+    const framerImportRegex = /import\s+{([^}]+)}\s+from\s+'framer-motion';?/;
+    const existingFramerImport = cleaned.match(framerImportRegex);
+
+    if (existingFramerImport) {
+      const importBlock = existingFramerImport[0];
+      const specifiers = existingFramerImport[1]
+        .split(',')
+        .map((token) => token.trim())
+        .filter(Boolean);
+
+      const ensureSpecifier = (name) => {
+        if (!specifiers.some((spec) => spec.split(' as ')[0] === name)) {
+          specifiers.push(name);
+        }
+      };
+
+      if (needsMotion) ensureSpecifier('motion');
+      if (needsAnimatePresence) ensureSpecifier('AnimatePresence');
+
+      const replacement = `import { ${specifiers.join(', ')} } from 'framer-motion';`;
+      cleaned = cleaned.replace(importBlock, replacement);
+    } else if (needsMotion || needsAnimatePresence) {
+      const additions = [];
+      if (needsMotion) additions.push('motion');
+      if (needsAnimatePresence) additions.push('AnimatePresence');
+      const framerImport = `import { ${additions.join(', ')} } from 'framer-motion';`;
+      cleaned = `${framerImport}\n${cleaned}`;
+    }
 
     if (!cleaned.includes('export default')) {
       const componentMatch = cleaned.match(/(?:function|const)\s+(\w+)/);
