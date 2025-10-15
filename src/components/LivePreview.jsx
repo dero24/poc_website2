@@ -194,10 +194,10 @@ const buildManifestDocument = (manifest, code) => {
 
 const createPreviewDocument = (app) => {
   const { previewManifest, code } = app || {};
-  if (!previewManifest) {
-    throw new Error('Preview manifest missing. Regenerate the app to receive a manifest-driven runtime.');
+  if (previewManifest) {
+    return buildManifestDocument(previewManifest, code || '');
   }
-  return buildManifestDocument(previewManifest, code || '');
+  return buildLegacyDocument(code || '');
 };
 
 const LivePreview = ({ app }) => {
