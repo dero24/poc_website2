@@ -9,5 +9,12 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
   }
 })
