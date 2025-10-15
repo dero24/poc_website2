@@ -1,107 +1,34 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sparkles, Wand2, Zap } from 'lucide-react';
-import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
-import groqService from '../services/groqService';
 
-const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey }) => {
-  const [appIdea, setAppIdea] = useState('');
-  const [selectedModel, setSelectedModel] = useState(() => {
-    const models = groqService.getAvailableModels();
-    if (Array.isArray(models) && models.length > 0) {
-      return models[0]?.id || 'llama-3.1-70b-versatile';
-    }
-    if (models && typeof models === 'object') {
-      const [firstKey, firstValue] = Object.entries(models)[0] || [];
-      if (typeof firstValue === 'string') return firstKey;
-      if (firstValue?.id) return firstValue.id;
-    }
-    return 'llama-3.1-70b-versatile';
-  });
-  const [error, setError] = useState('');
+const EXAMPLE_IDEAS = [
+  'AI-powered todo list with smart categorization',
+  'Real-time weather dashboard with beautiful animations',
+  'Interactive memory card game with scoring',
+  'Expense tracker with visual charts and budgeting',
+  'AI chatbot for customer support',
+  'Pomodoro timer with productivity insights',
+  'Recipe finder with ingredient substitutions',
+  'Habit tracker with streak visualization'
+];
 
-  const rawModels = groqService.getAvailableModels();
-  const modelOptions = Array.isArray(rawModels)
-    ? rawModels
-    : Object.entries(rawModels || {}).map(([id, value]) => ({
-        id,
-        label: typeof value === 'string' ? value : value?.label || id
-      }));
-
-  const handleGenerate = async () => {
-    if (!appIdea.trim()) {
-      setError('Please describe your app idea');
-      return;
-    }
-
-    const apiKey = groqService.getApiKey();
-    if (!apiKey) {
-      setError('Add your Groq API key in the settings to generate apps.');
-      if (typeof onRequireApiKey === 'function') {
-        onRequireApiKey();
-      }
-      return;
-    }
-
-    setIsGenerating(true);
-    setError('');
-
-    try {
-      const template = PROMPT_TEMPLATES.base;
-      const prompt = buildPrompt(template.template, appIdea, {
-        apiKey,
-        modelId: selectedModel
-      });
-
-      const generatedCode = await groqService.generateCode(prompt, selectedModel);
-      
-      if (!groqService.validateCode(generatedCode)) {
-        throw new Error('Generated code failed validation');
-      }
-
-      const appData = {
-        id: Date.now().toString(),
-        appIdea,
-        model: selectedModel,
-        template: 'base',
-        code: generatedCode,
-        prompt,
-        timestamp: Date.now(),
-        isWorking: true
-      };
-
-      onAppGenerated(appData);
-    } catch (error) {
-      console.error('Generation error:', error);
-      setError(error.message);
-      
-      // Provide fallback
-      const fallbackApp = {
-        id: Date.now().toString(),
-        appIdea: `Fallback for: ${appIdea}`,
-        model: selectedModel,
-        template: 'fallback',
-        code: FALLBACK_CODE,
-        prompt: 'Fallback due to generation error',
-        timestamp: Date.now(),
-        isWorking: false
-      };
-      
-      onAppGenerated(fallbackApp);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const exampleIdeas = [
-    "AI-powered todo list with smart categorization",
-    "Real-time weather dashboard with beautiful animations", 
-    "Interactive memory card game with scoring",
-    "Expense tracker with visual charts and budgeting",
-    "AI chatbot for customer support",
-    "Pomodoro timer with productivity insights",
-    "Recipe finder with ingredient substitutions",
-    "Habit tracker with streak visualization"
-  ];
+const AppGenerator = ({
+  appIdea,
+  onAppIdeaChange,
+  modelKey,
+  onModelChange,
+  modelOptions = [],
+  isGenerating,
+  onGenerate,
+  errorMessage,
+  onUseExample,
+  toolPreferences = [],
+  onToolToggle,
+  toolDefinitions = {}
+}) => {
+  const displayedModels = Array.isArray(modelOptions) && modelOptions.length
+    ? modelOptions
+    : [{ id: modelKey, label: modelKey }];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -125,7 +52,7 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
           </label>
           <textarea
             value={appIdea}
-            onChange={(e) => setAppIdea(e.target.value)}
+            onChange={(e) => onAppIdeaChange?.(e.target.value)}
             placeholder="E.g., A todo app with AI-powered task prioritization and deadline suggestions..."
             className="w-full h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             disabled={isGenerating}
@@ -139,12 +66,12 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
               Groq Model
             </label>
             <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
+              value={modelKey}
+              onChange={(e) => onModelChange?.(e.target.value)}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isGenerating}
             >
-              {modelOptions.map((model) => (
+              {displayedModels.map((model) => (
                 <option key={model.id} value={model.id} className="bg-gray-800">
                   {model.label || model.id}
                 </option>
@@ -152,24 +79,49 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
             </select>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-300">
-            <p className="font-semibold text-white mb-2">AI usage policy</p>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-300 space-y-3">
+            <p className="font-semibold text-white">Agent tools</p>
             <p>
-              Groq decides when AI calls are needed. The API key is injected automatically into generated apps, so you never have to expose it to users.
+              Enable the Groq MCP tools Morphic Web can use during this run. The agent will only call tools that are switched on.
             </p>
+            <div className="grid grid-cols-1 gap-2">
+              {toolPreferences.map((tool) => {
+                const definition = toolDefinitions?.[tool.name] || {};
+                return (
+                  <label
+                    key={tool.name}
+                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/40 px-4 py-3 hover:border-white/20 transition-all"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tool.enabled !== false}
+                      onChange={() => onToolToggle?.(tool.name)}
+                      disabled={isGenerating}
+                      className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-iris focus:ring-iris"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-white text-sm font-medium capitalize">{definition.title || tool.name}</p>
+                      <p className="text-xs text-white/60">
+                        {definition.description || 'Tool description unavailable.'}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Error Display */}
-        {error && (
+        {errorMessage && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-300">{error}</p>
+            <p className="text-red-300">{errorMessage}</p>
           </div>
         )}
 
         {/* Generate Button */}
         <button
-          onClick={handleGenerate}
+          onClick={() => onGenerate?.()}
           disabled={isGenerating || !appIdea.trim()}
           className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold py-4 px-8 rounded-lg transition-all transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed"
         >
@@ -186,10 +138,10 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
         <div className="mt-8">
           <h3 className="text-sm font-medium text-white mb-4">Need inspiration? Try these ideas:</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {exampleIdeas.map((idea, index) => (
+            {EXAMPLE_IDEAS.map((idea, index) => (
               <button
                 key={index}
-                onClick={() => setAppIdea(idea)}
+                onClick={() => onUseExample?.(idea)}
                 className="text-left p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-gray-300 hover:text-white transition-all text-sm"
                 disabled={isGenerating}
               >

@@ -16,7 +16,16 @@ class VersionService {
       template: appData.template,
       code: appData.code,
       prompt: appData.prompt,
-      isWorking: appData.isWorking ?? true
+      isWorking: appData.isWorking ?? true,
+      agentRun: appData.agentRun || null,
+      toolPreferences: Array.isArray(appData.toolPreferences)
+        ? appData.toolPreferences.map((entry) => ({ ...entry }))
+        : [],
+      previewManifest: appData.previewManifest || null,
+      metadata: appData.metadata || null,
+      guardrailWarnings: Array.isArray(appData.guardrailWarnings)
+        ? appData.guardrailWarnings.slice(0, 20)
+        : []
     };
 
     versions.unshift(version); // Add to beginning
@@ -55,7 +64,22 @@ class VersionService {
   }
 
   setCurrentApp(version) {
-    localStorage.setItem(this.currentAppKey, JSON.stringify(version));
+    if (!version) {
+      localStorage.removeItem(this.currentAppKey);
+      return;
+    }
+    const payload = {
+      ...version,
+      agentRun: version.agentRun || null,
+      toolPreferences: Array.isArray(version.toolPreferences)
+        ? version.toolPreferences
+        : [],
+      previewManifest: version.previewManifest || null,
+      guardrailWarnings: Array.isArray(version.guardrailWarnings)
+        ? version.guardrailWarnings
+        : []
+    };
+    localStorage.setItem(this.currentAppKey, JSON.stringify(payload));
   }
 
   getCurrentApp() {

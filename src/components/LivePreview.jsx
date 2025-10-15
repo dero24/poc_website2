@@ -1,100 +1,209 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RefreshCw, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react';
 
+const escapeHtmlAttribute = (value) => String(value ?? '').replace(/"/g, '&quot;');
+const escapeInlineScript = (value) => String(value ?? '').replace(/<\/(script)/gi, '<\\/$1');
+const escapeInlineStyle = (value) => String(value ?? '').replace(/<\/(style)/gi, '<\\/$1');
+
+const createLinkTag = ({ href, rel = 'stylesheet', media }) => {
+  if (!href) return '';
+  const attrs = [`rel="${escapeHtmlAttribute(rel)}"`, `href="${escapeHtmlAttribute(href)}"`];
+  if (media) {
+    attrs.push(`media="${escapeHtmlAttribute(media)}"`);
+  }
+  return `<link ${attrs.join(' ')} />`;
+};
+
+const createStyleTag = ({ content, media }) => {
+  if (!content) return '';
+  const mediaAttr = media ? ` media="${escapeHtmlAttribute(media)}"` : '';
+  return `<style${mediaAttr}>${escapeInlineStyle(content)}</style>`;
+};
+
+const createScriptTag = ({ src, content, type, async, defer, crossorigin, integrity }) => {
+  const attrs = [];
+  if (type) attrs.push(`type="${escapeHtmlAttribute(type)}"`);
+  if (src) attrs.push(`src="${escapeHtmlAttribute(src)}"`);
+  if (async) attrs.push('async');
+  if (defer) attrs.push('defer');
+  if (crossorigin) attrs.push(`crossorigin="${escapeHtmlAttribute(crossorigin)}"`);
+  if (integrity) attrs.push(`integrity="${escapeHtmlAttribute(integrity)}"`);
+  const attrString = attrs.length ? ` ${attrs.join(' ')}` : '';
+  if (content) {
+    return `<script${attrString}>${escapeInlineScript(content)}</script>`;
+  }
+  return `<script${attrString}></script>`;
+};
+
+const LEGACY_BODY_STYLE = `body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
+.error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
+.error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
+.error-message { color: #744210; }`;
+
+const buildLegacyRuntimeScript = (code) => {
+  const runtimeContent = `const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Preview Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', { className: 'error-boundary' },
+        React.createElement('div', { className: 'error-title' }, '⚠️ Preview Error'),
+        React.createElement('div', { className: 'error-message' }, this.state.error?.message || 'Something went wrong in the preview')
+      );
+    }
+    return this.props.children;
+  }
+}
+
+${escapeInlineScript(code)}
+
+try {
+  const AppComponent = typeof App !== 'undefined'
+    ? App
+    : typeof GeneratedApp !== 'undefined'
+      ? GeneratedApp
+      : () => React.createElement('div', { className: 'p-8 text-center' }, 'App component not found');
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(
+    React.createElement(ErrorBoundary, null, React.createElement(AppComponent))
+  );
+
+  window.parent?.postMessage({ type: 'preview-loaded', success: true }, '*');
+} catch (error) {
+  console.error('Render error:', error);
+  window.parent?.postMessage({ type: 'preview-error', error: error?.message || 'Render error' }, '*');
+}`;
+
+  return createScriptTag({ type: 'text/babel', content: runtimeContent });
+};
+
+const PREVIEW_BRIDGE_SCRIPT = createScriptTag({
+  content: `(function() {
+  const notifySuccess = () => window.parent?.postMessage({ type: 'preview-loaded', success: true }, '*');
+  if (document.readyState === 'complete') {
+    notifySuccess();
+  } else {
+    window.addEventListener('load', notifySuccess, { once: true });
+  }
+  window.addEventListener('error', (event) => {
+    const message = (event.error && event.error.message) || event.message || 'Preview error';
+    window.parent?.postMessage({ type: 'preview-error', error: message }, '*');
+  });
+})();`
+});
+
+const DEFAULT_LIB_SCRIPTS = [
+  createScriptTag({ src: 'https://unpkg.com/react@18/umd/react.development.js', crossorigin: 'anonymous' }),
+  createScriptTag({ src: 'https://unpkg.com/react-dom@18/umd/react-dom.development.js', crossorigin: 'anonymous' }),
+  createScriptTag({ src: 'https://unpkg.com/@babel/standalone/babel.min.js', crossorigin: 'anonymous' })
+];
+
+const DEFAULT_STYLE_SCRIPT = createScriptTag({ src: 'https://cdn.tailwindcss.com' });
+
+const buildLegacyDocument = (code) => {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generated App Preview</title>
+  ${DEFAULT_LIB_SCRIPTS.join('\n  ')}
+  ${DEFAULT_STYLE_SCRIPT}
+  ${createStyleTag({ content: LEGACY_BODY_STYLE })}
+</head>
+<body>
+  <div id="root"></div>
+  ${buildLegacyRuntimeScript(code)}
+  ${PREVIEW_BRIDGE_SCRIPT}
+</body>
+</html>`;
+};
+
+const buildManifestDocument = (manifest, code) => {
+  const headParts = [
+    '<meta charset="UTF-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+    '<title>Generated App Preview</title>',
+    createStyleTag({ content: LEGACY_BODY_STYLE })
+  ];
+
+  if (manifest?.html?.head) {
+    headParts.push(manifest.html.head);
+  }
+
+  const styleTags = [];
+  (manifest?.styles || []).forEach((style) => {
+    if (style?.href) {
+      styleTags.push(createLinkTag(style));
+    } else if (style?.content) {
+      styleTags.push(createStyleTag(style));
+    }
+  });
+  if (styleTags.length) {
+    headParts.push(...styleTags);
+  }
+
+  const bodyContent = manifest?.html?.body || '<div id="root"></div>';
+
+  const scriptTags = [];
+  (manifest?.scripts || []).forEach((script) => {
+    const tag = createScriptTag(script);
+    if (tag) {
+      scriptTags.push(tag);
+    }
+  });
+
+  const hasEntry = Boolean(manifest?.entry && (manifest.entry.src || manifest.entry.content));
+  if (hasEntry) {
+    scriptTags.push(createScriptTag(manifest.entry));
+  }
+
+  if (!hasEntry) {
+    headParts.push(DEFAULT_STYLE_SCRIPT);
+    headParts.push(...DEFAULT_LIB_SCRIPTS);
+    scriptTags.push(buildLegacyRuntimeScript(code));
+  }
+
+  scriptTags.push(PREVIEW_BRIDGE_SCRIPT);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  ${headParts.join('\n  ')}
+</head>
+<body>
+  ${bodyContent}
+  ${scriptTags.join('\n  ')}
+</body>
+</html>`;
+};
+
+const createPreviewDocument = (app) => {
+  const { previewManifest, code } = app || {};
+  if (!previewManifest) {
+    throw new Error('Preview manifest missing. Regenerate the app to receive a manifest-driven runtime.');
+  }
+  return buildManifestDocument(previewManifest, code || '');
+};
+
 const LivePreview = ({ app }) => {
   const [previewError, setPreviewError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const iframeRef = useRef(null);
-
-  const createPreviewHTML = (code) => {
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated App Preview</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
-        .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
-        .error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
-        .error-message { color: #744210; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
-        
-        // Error Boundary Component
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false, error: null };
-            }
-            
-            static getDerivedStateFromError(error) {
-                return { hasError: true, error };
-            }
-            
-            componentDidCatch(error, errorInfo) {
-                console.error('Preview Error:', error, errorInfo);
-            }
-            
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="error-boundary">
-                            <div className="error-title">⚠️ Preview Error</div>
-                            <div className="error-message">
-                                {this.state.error?.message || 'Something went wrong in the preview'}
-                            </div>
-                        </div>
-                    );
-                }
-                
-                return this.props.children;
-            }
-        }
-        
-        // Generated App Code
-        ${code}
-        
-        // Render the app
-        try {
-            const AppComponent = typeof App !== 'undefined' ? App : 
-                               typeof GeneratedApp !== 'undefined' ? GeneratedApp :
-                               function DefaultApp() {
-                                   return React.createElement('div', {
-                                       className: 'p-8 text-center'
-                                   }, 'App component not found');
-                               };
-            
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(
-                React.createElement(ErrorBoundary, null,
-                    React.createElement(AppComponent)
-                )
-            );
-            
-            // Signal successful load
-            window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
-        } catch (error) {
-            console.error('Render error:', error);
-            window.parent.postMessage({ 
-                type: 'preview-error', 
-                error: error.message 
-            }, '*');
-        }
-    </script>
-</body>
-</html>`;
-  };
 
   useEffect(() => {
     if (!app?.code) return;
@@ -117,34 +226,47 @@ const LivePreview = ({ app }) => {
     // Load the preview
     const iframe = iframeRef.current;
     if (iframe) {
-      const htmlContent = createPreviewHTML(app.code);
-      iframe.srcdoc = htmlContent;
+      try {
+        const htmlContent = createPreviewDocument(app);
+        iframe.srcdoc = htmlContent;
+      } catch (error) {
+        setIsLoading(false);
+        setPreviewError(error.message || 'Preview manifest missing or invalid.');
+      }
     }
 
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [app?.code]);
+  }, [app]);
 
   const refreshPreview = () => {
-    if (iframeRef.current && app?.code) {
-      setIsLoading(true);
-      setPreviewError(null);
-      const htmlContent = createPreviewHTML(app.code);
+    if (!iframeRef.current || !app?.code) return;
+    setIsLoading(true);
+    setPreviewError(null);
+    try {
+      const htmlContent = createPreviewDocument(app);
       iframeRef.current.srcdoc = htmlContent;
+    } catch (error) {
+      setIsLoading(false);
+      setPreviewError(error.message || 'Preview manifest missing or invalid.');
     }
   };
 
   const openInNewTab = () => {
     if (!app?.code) return;
-    
-    const htmlContent = createPreviewHTML(app.code);
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    
-    // Clean up the URL after a delay
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    try {
+      const htmlContent = createPreviewDocument(app);
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+
+      // Clean up the URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setPreviewError(error.message || 'Preview manifest missing or invalid.');
+    }
   };
 
   if (!app) {

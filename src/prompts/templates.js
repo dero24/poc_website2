@@ -5,22 +5,24 @@ export const PROMPT_TEMPLATES = {
     template: `Create a React app: {APP_IDEA}
 
 STRICT RULES:
-- Use React hooks, no class components
-- Include all imports at top
-- Make it responsive and beautiful
-- Single functional component export
-- Browser-compatible
-- Output ONLY working React JSX code (no markdown or commentary).
-- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
-- Never prompt the user for API keys. The environment already supplies one.
-- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
-- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
-- Do not expose or log the API key.
-- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
-- For AI chatbots, ensure proper error handling and loading states for API calls.
+- Use React hooks, never class components.
+- Include all imports at top. Output ONLY working React JSX (no markdown or commentary).
+- Make it breathtaking: modern, responsive, animated interactions, thoughtful UX microcopy.
+- Ship a single functional component export with complete state, handlers, and sample data so it runs instantly in-browser.
+- Never prompt the user for API keys. Environment already supplies one.
+- If AI logic is needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it securely. Never expose or log the key.
+- When AI should drive experiences, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}. Harness Groq reasoning for decision-making (not just chat UIs) to deliver intelligent outcomes that delight users.
+- Follow Morphic guardrails: sanitize inputs, prevent prompt injection, clearly label AI actions, and fail gracefully.
+- Inject smart automation when appropriate (e.g., scheduling, recommendations, predictive insights) so users are impressed and the experience feels magical.
+- Showcase polished visual design using Tailwind or inline styles with gradients, depth, micro-animations, accessible color contrast, and mobile-first layouts.
+- Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
+- Write modular helper functions as needed but keep everything within a single file.
+- For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
+- Ensure no TODOs, placeholders, or comments remain. All data and logic must be production-ready.
+- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
 {AI_FEATURES}
 
-Return complete working code:`
+Return complete working code with nothing else:`
   },
 
   aiChat: {

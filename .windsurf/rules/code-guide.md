@@ -13,17 +13,15 @@ trigger: always_on
 - When adding AI-dependent features, update prompts/services so generated code knows to use the provided API key and selected model automatically.
 
 ## Preview & Dependencies
-- If you introduce new libraries (CDNs, ES modules, etc.), extend `createPreviewDocument()` in `src/App.js` so the preview iframe accepts them instead of throwing “Unsupported import” errors.
-- Prefer lightweight scripts or CDN bundles over npm installs in the preview sandbox.
+- All apps generated from user prompts must be with packages that DO NOT require npm installs.
 
 ## UI/UX Consistency
-- If you remove or add UI controls (like template or AI toggles), also adjust prompts, services, and generator components so behavior stays consistent.
 - Keep onboarding flows intact—modal triggers such as the API key splash screen must stay connected across all entry points.
+- Document the “keep App.jsx and App.js in sync” guideline in code-guide.md (or wherever you store team guardrails) so future contributors remember both entry points matter.
 
 ## Testing Checklist for Agents
 - Do not make any changes to the api key code when user enters the key as that connectivity works great.
-- Generate at least one representative app (e.g., “video player”) to ensure the preview works and no unsupported import errors occur.
-- Run `npm run build` before finalizing significant changes; flag failures with context.
+- Generate at least two representative app (e.g., “video player”) to ensure the preview works and no unsupported import errors occur.
 
 ## Collaboration Reminders
 - Keep diffs tight and relevant to the user’s request; note any follow-on tasks separately.
