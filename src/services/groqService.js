@@ -525,24 +525,44 @@ class GroqService {
       payload.response_format = responseFormat;
     }
 
+    const useResponsesApi = /compound/i.test(payload.model);
+    if (useResponsesApi) {
+      const responsesPayload = {
+        model: payload.model,
+        input: payload.input,
+        tools: payload.tools,
+        stream: Boolean(payload.stream),
+        metadata: payload.metadata,
+        ...requestParameters
+      };
+      if (responseFormat) {
+        responsesPayload.response_format = responseFormat;
+      }
+
+      if (responsesPayload.stream) {
+        return this.runResponsesWorkflowStream(responsesPayload);
+      }
+      return this.runResponsesWorkflow(responsesPayload);
+    }
+
     const endpoint = `${this.baseUrl}/chat/completions`;
-    
+
     // Convert to standard OpenAI format
     const openaiPayload = {
       model: payload.model,
-      messages: payload.input.map(msg => ({
+      messages: payload.input.map((msg) => ({
         role: msg.role,
-        content: msg.content.map(c => c.text).join('')
+        content: msg.content.map((c) => c.text).join('')
       })),
       stream: payload.stream,
       ...payload
     };
-    
+
     // Remove non-OpenAI fields
     delete openaiPayload.input;
     delete openaiPayload.tools;
     delete openaiPayload.metadata;
-    
+
     if (payload.stream) {
       return this.runAgenticWorkflowStream(endpoint, openaiPayload);
     }
@@ -595,6 +615,122 @@ class GroqService {
 
     if (!response.body) {
       return { id: null, status: 'failed', messages: [], reasoning: [], toolCalls: [], artifacts: [], metadata: {}, raw: null };
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const events = [];
+    let done = false;
+
+    while (!done) {
+      const chunk = await reader.read();
+      done = chunk.done;
+      if (chunk.value) {
+        buffer += decoder.decode(chunk.value, { stream: true });
+        let separatorIndex = buffer.indexOf('\n\n');
+        while (separatorIndex !== -1) {
+          const eventChunk = buffer.slice(0, separatorIndex);
+          buffer = buffer.slice(separatorIndex + 2);
+          eventChunk
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.startsWith('data:'))
+            .forEach((line) => {
+              const dataLine = line.slice(5).trim();
+              if (!dataLine || dataLine === '[DONE]') {
+                return;
+              }
+              try {
+                const parsed = JSON.parse(dataLine);
+                events.push(parsed);
+              } catch (error) {
+                events.push({ type: 'unknown', raw: dataLine });
+              }
+            });
+          separatorIndex = buffer.indexOf('\n\n');
+        }
+      }
+    }
+
+    let finalPayload = null;
+    for (const event of events) {
+      if (event?.type === 'response.completed' && event?.response) {
+        finalPayload = event.response;
+      }
+    }
+
+    if (!finalPayload) {
+      const fallback = events[events.length - 1]?.response;
+      finalPayload = fallback || null;
+    }
+
+    const normalized = this.normalizeResponse(finalPayload || {}, payload.model, events);
+    this.lastRun = normalized;
+    return normalized;
+  }
+
+  async runResponsesWorkflow(payload) {
+    const endpoint = `${this.baseUrl}/responses`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ...payload, stream: false })
+    });
+
+    if (!response.ok) {
+      let details = '';
+      try {
+        const errorPayload = await response.json();
+        details = errorPayload?.error?.message || errorPayload?.message || '';
+      } catch (parseError) {
+        details = response.statusText;
+      }
+      throw new Error(`Groq MCP error (${response.status}): ${details || 'Unexpected response'}`);
+    }
+
+    const data = await response.json();
+    const normalized = this.normalizeResponse(data, payload.model);
+    this.lastRun = normalized;
+    return normalized;
+  }
+
+  async runResponsesWorkflowStream(payload) {
+    const endpoint = `${this.baseUrl}/responses`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ...payload, stream: true })
+    });
+
+    if (!response.ok) {
+      let details = '';
+      try {
+        const errorPayload = await response.json();
+        details = errorPayload?.error?.message || errorPayload?.message || '';
+      } catch (parseError) {
+        details = response.statusText;
+      }
+      throw new Error(`Groq MCP stream error (${response.status}): ${details || 'Unexpected response'}`);
+    }
+
+    if (!response.body) {
+      return {
+        id: null,
+        status: 'failed',
+        messages: [],
+        reasoning: [],
+        toolCalls: [],
+        artifacts: [],
+        metadata: {},
+        raw: null
+      };
     }
 
     const reader = response.body.getReader();

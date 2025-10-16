@@ -14,7 +14,8 @@ STRICT RULES:
 - When AI should drive experiences, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}. Harness Groq reasoning for decision-making (not just chat UIs) to deliver intelligent outcomes that delight users.
 - Follow Morphic guardrails: sanitize inputs, prevent prompt injection, clearly label AI actions, and fail gracefully.
 - Inject smart automation when appropriate (e.g., scheduling, recommendations, predictive insights) so users are impressed and the experience feels magical.
-- Showcase polished visual design using Tailwind or inline styles with gradients, depth, micro-animations, accessible color contrast, and mobile-first layouts.
+- Showcase premium visuals using modern open-source CDN packages (Tailwind, Framer Motion, Lucide, Recharts, etc.) with gradients, depth, layered glassmorphism, and delightful micro-animations.
+- When rendering AI responses, format content in Markdown (headings, emphasis, lists) and display it beautifully using a Markdown parser such as marked (via CDN) or react-markdown with styled containers.
 - Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
 - Write modular helper functions as needed but keep everything within a single file.
 - For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
@@ -34,8 +35,8 @@ REQUIREMENTS:
 - Use useState, useEffect hooks
 - Groq API integration with key: {API_KEY}
 - Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
+- Send/receive functionality with Markdown-formatted assistant replies rendered via marked or react-markdown and styled elegantly
+- Tailwind CSS styling plus tasteful animation (e.g., Framer Motion)
 - Mobile responsive
 {AI_FEATURES}
 
@@ -102,6 +103,8 @@ GROQ USAGE NOTES:
 - Send the selected model '{MODEL_ID}' alongside any messages payload.
 - Guard calls with loading and error states and only invoke them when the user workflow requires AI.
 - Never request or display the API key to the user.
+- Whenever AI returns rich text, convert it to polished HTML using Markdown rendering (marked or react-markdown) before displaying to the user.
+- Favor expressive open-source CDN libraries (Tailwind, Framer Motion, Lucide, Recharts, etc.) to keep the UI premium, interactive, and modern across devices.
 - Example fetch call:
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
