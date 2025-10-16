@@ -804,36 +804,82 @@ class GroqService {
   }
 
   sanitizeCode(code) {
-    let cleaned = code.replace(/```jsx?\n?/g, '').replace(/```\n?/g, '');
-    const lines = cleaned.split('\n');
-    let startIndex = 0;
-    let endIndex = lines.length - 1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim().match(/^(import|export|function|const|class)/)) {
-        startIndex = i;
-        break;
+    if (!code) {
+      return '';
+    }
+
+    let cleaned = code.replace(/```jsx?\n?/gi, '').replace(/```/g, '');
+
+    let lines = cleaned
+      .split('\n')
+      .map((line) => line.replace(/\r$/, ''))
+      .filter((line) => !line.trim().startsWith('import '));
+
+    while (lines.length && !lines[0].trim()) {
+      lines.shift();
+    }
+    while (lines.length && !lines[lines.length - 1].trim()) {
+      lines.pop();
+    }
+
+    cleaned = lines.join('\n');
+
+    let defaultExportName = null;
+
+    cleaned = cleaned.replace(/export\s+default\s+function\s+([A-Za-z0-9_]+)\s*\(/g, (_, name) => {
+      defaultExportName = name;
+      return `function ${name}(`;
+    });
+
+    cleaned = cleaned.replace(/export\s+default\s+class\s+([A-Za-z0-9_]+)\s*/g, (_, name) => {
+      defaultExportName = name;
+      return `class ${name} `;
+    });
+
+    cleaned = cleaned.replace(/export\s+default\s+const\s+([A-Za-z0-9_]+)\s*=\s*/g, (_, name) => {
+      defaultExportName = name;
+      return `const ${name} = `;
+    });
+
+    cleaned = cleaned.replace(/export\s+default\s+let\s+([A-Za-z0-9_]+)\s*=\s*/g, (_, name) => {
+      defaultExportName = name;
+      return `let ${name} = `;
+    });
+
+    cleaned = cleaned.replace(/export\s+default\s+\(/g, 'const GeneratedApp = (');
+
+    cleaned = cleaned.replace(/export\s+default\s+([A-Za-z0-9_]+)\s*;/g, (_, name) => {
+      defaultExportName = name;
+      return '';
+    });
+
+    cleaned = cleaned.replace(/export\s+default\s*;/g, '');
+
+    const componentMatch =
+      cleaned.match(/function\s+([A-Z][A-Za-z0-9_]*)\s*\(/) ||
+      cleaned.match(/const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*\(/) ||
+      cleaned.match(/const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*function/);
+
+    if (!defaultExportName && componentMatch) {
+      defaultExportName = componentMatch[1];
+    }
+
+    if (!/const\s+GeneratedApp\s*=/.test(cleaned)) {
+      if (defaultExportName) {
+        cleaned = `${cleaned.trim()}\n\nconst GeneratedApp = ${defaultExportName};`;
+      } else {
+        cleaned = `${cleaned.trim()}\n\nconst GeneratedApp = () => <div />;`;
       }
     }
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].trim() && !lines[i].trim().startsWith('//')) {
-        endIndex = i;
-        break;
-      }
-    }
-    cleaned = lines.slice(startIndex, endIndex + 1).join('\n');
-    if (!cleaned.includes('export default')) {
-      const componentMatch = cleaned.match(/function\s+(\w+)/);
-      if (componentMatch) {
-        cleaned += `\n\nexport default ${componentMatch[1]};`;
-      }
-    }
+
     return cleaned.trim();
   }
 
   validateCode(code) {
     if (!code) return false;
     const hasExport = /export\s+default/.test(code);
-    if (!hasExport) return false;
+    const hasGeneratedApp = /const\s+GeneratedApp\s*=/.test(code);
+    if (!hasExport && !hasGeneratedApp) return false;
     const componentPattern = /(function\s+\w+\s*\(|const\s+\w+\s*=\s*\(?\s*\w*\s*=>)/;
     const jsxPattern = /<\w+[\s>]/;
     return componentPattern.test(code) || jsxPattern.test(code);
