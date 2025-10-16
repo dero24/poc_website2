@@ -791,8 +791,7 @@ class GroqService {
       modelId: model,
       tools: [],
       requestParameters: {
-        temperature: 0.3,
-        max_output_tokens: 4000
+        temperature: 0.3
       }
     });
 

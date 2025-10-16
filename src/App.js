@@ -245,8 +245,7 @@ function App() {
           enabledTools: enabledTools.map((tool) => tool.name)
         },
         requestParameters: {
-          temperature: 0.35,
-          max_output_tokens: 6000
+          temperature: 0.35
         }
       });
 
