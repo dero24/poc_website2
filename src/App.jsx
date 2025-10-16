@@ -41,6 +41,8 @@ const TOOL_DEFINITIONS = {
   }
 };
 
+const APP_VERSION = 'v0.5.0';
+
 const AGENT_SYSTEM_PROMPT = `You are Morphic Web's Groq compound agent. Build awe-inspiring, pixel-perfect React 18 single-file applications that obey Morphic guardrails and wow end users.
 
 Mission:
@@ -124,7 +126,7 @@ function App() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
   const templateKey = 'base';
-  const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
+  const [modelKey, setModelKey] = useState('groq/compound');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
   const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);
@@ -171,6 +173,30 @@ function App() {
     () => toolPreferences.filter((entry) => entry.enabled !== false),
     [toolPreferences]
   );
+
+  useEffect(() => {
+    if (!apiKey) {
+      return;
+    }
+
+    let cancelled = false;
+    const loadModels = async () => {
+      const list = await groqService.refreshModels();
+      if (cancelled) return;
+      setModelOptions(list);
+      setModelKey((current) => {
+        if (list.find((entry) => entry.id === current)) {
+          return current;
+        }
+        return list[0]?.id || current;
+      });
+    };
+
+    loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey]);
 
   const handleToolToggle = useCallback((toolName) => {
     setToolPreferences((current) =>
@@ -317,11 +343,18 @@ function App() {
                 <h1 className="text-xl font-bold text-white">Morphic Web</h1>
                 <p className="text-xs text-gray-300">Instant App Creation</p>
               </div>
+              <span className="px-2 py-1 text-xs font-semibold text-white bg-white/10 rounded-lg border border-white/20">{APP_VERSION}</span>
             </div>
 
             <nav className="flex space-x-1">
+              <button
+                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-all ${activeView === 'generate' ? 'bg-white/20 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
+                onClick={() => setActiveView('generate')}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">Generate</span>
+              </button>
               {[
-                { id: 'generate', label: 'Generate', icon: Sparkles },
                 { id: 'preview', label: 'Preview', icon: Play, disabled: !generatedApp },
                 { id: 'code', label: 'Code', icon: Code, disabled: !generatedApp },
                 { id: 'history', label: 'History', icon: History }
@@ -427,7 +460,14 @@ function App() {
             setShowApiModal(false);
             // Refresh available models with the new API key
             try {
-              await groqService.refreshModels();
+              const list = await groqService.refreshModels();
+              setModelOptions(list);
+              setModelKey((current) => {
+                if (list.find((entry) => entry.id === current)) {
+                  return current;
+                }
+                return list[0]?.id || current;
+              });
             } catch (error) {
               console.error('Failed to refresh models:', error);
             }

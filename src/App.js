@@ -37,6 +37,8 @@ const TOOL_DEFINITIONS = {
   }
 };
 
+const APP_VERSION = 'v0.5.0';
+
 const AGENT_SYSTEM_PROMPT = `You are Morphic Web's Groq compound agent. Build awe-inspiring, pixel-perfect React 18 single-file applications that obey Morphic guardrails and wow end users.
 
 Mission:
@@ -120,7 +122,7 @@ function App() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
   const templateKey = 'base';
-  const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
+  const [modelKey, setModelKey] = useState('groq/compound');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
   const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);
@@ -187,11 +189,14 @@ function App() {
       const list = await groqService.refreshModels();
       if (cancelled) return;
       setModelOptions(list);
-      const preferred = list.find((entry) => entry.id === modelKey);
-      if (!preferred && list.length) {
-        setModelKey(list[0].id);
-      }
+      setModelKey((current) => {
+        if (list.find((entry) => entry.id === current)) {
+          return current;
+        }
+        return list[0]?.id || current;
+      });
     };
+
     loadModels();
     return () => {
       cancelled = true;
@@ -209,10 +214,12 @@ function App() {
     setShowApiModal(false);
     groqService.refreshModels().then((list) => {
       setModelOptions(list);
-      const existing = list.find((entry) => entry.id === modelKey);
-      if (!existing && list.length) {
-        setModelKey(list[0].id);
-      }
+      setModelKey((current) => {
+        if (list.find((entry) => entry.id === current)) {
+          return current;
+        }
+        return list[0]?.id || current;
+      });
     });
   }, []);
 
@@ -419,12 +426,13 @@ function Header({ activeView, setActiveView, generatedApp, onOpenSettings }) {
 
   return h('header', { className: 'border-b border-white/10 backdrop-blur bg-black/20' }, [
     h('div', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between' }, [
-      h('div', { className: 'flex items-center gap-3' }, [
-        h('div', { className: 'w-11 h-11 rounded-xl bg-gradient-to-r from-iris to-magenta flex items-center justify-center text-xl font-semibold shadow-lg' }, '⚡'),
+      h('div', { className: 'flex items-center space-x-3' }, [
+        h('div', { className: 'w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center' }, '⚡'),
         h('div', null, [
-          h('div', { className: 'text-lg font-semibold leading-tight' }, 'Morphic Web'),
-          h('p', { className: 'text-sm text-white/70' }, 'Instant Groq-powered interface creation')
-        ])
+          h('h1', { className: 'text-xl font-bold text-white' }, 'Morphic Web'),
+          h('p', { className: 'text-xs text-gray-300' }, 'Instant App Creation')
+        ]),
+        h('span', { className: 'px-2 py-1 text-xs font-semibold text-white bg-white/10 rounded-lg border border-white/20' }, APP_VERSION)
       ]),
       h('nav', { className: 'flex flex-wrap gap-2' }, tabs.map((tab) =>
         h('button', {
