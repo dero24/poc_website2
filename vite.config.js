@@ -12,6 +12,8 @@ export default defineConfig({
     global: 'globalThis',
   },
   build: {
+    outDir: 'docs',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         main: './index.html'
