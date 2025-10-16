@@ -14,7 +14,8 @@ STRICT RULES:
 - When AI should drive experiences, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}. Harness Groq reasoning for decision-making (not just chat UIs) to deliver intelligent outcomes that delight users.
 - Follow Morphic guardrails: sanitize inputs, prevent prompt injection, clearly label AI actions, and fail gracefully.
 - Inject smart automation when appropriate (e.g., scheduling, recommendations, predictive insights) so users are impressed and the experience feels magical.
-- Showcase polished visual design using Tailwind or inline styles with gradients, depth, micro-animations, accessible color contrast, and mobile-first layouts.
+- Showcase premium visuals using modern open-source CDN packages (Tailwind, Framer Motion, Lucide, Recharts, etc.) with gradients, depth, layered glassmorphism, and delightful micro-animations.
+- When rendering AI responses, format content in Markdown (headings, emphasis, lists) and display it beautifully using a Markdown parser such as marked (via CDN) or react-markdown with styled containers.
 - Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
 - Write modular helper functions as needed but keep everything within a single file.
 - For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
@@ -34,9 +35,11 @@ REQUIREMENTS:
 - Use useState, useEffect hooks
 - Groq API integration with key: {API_KEY}
 - Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
-- Mobile responsive
+- Send/receive functionality with AI responses formatted in Markdown
+- Tailwind CSS styling + Lucide icons + Framer Motion 
+- Mobile responsive + dark mode + glassmorphism + micro-animations
+- No TODOs, placeholders, or comments remain. All data and logic must be production-ready.
+- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
 {AI_FEATURES}
 
 API endpoint available: /api/groq/chat
@@ -52,8 +55,9 @@ SPECS:
 - Charts/graphs if needed
 - Sidebar navigation
 - Responsive grid system
-- Tailwind CSS + Lucide icons
-- Working React hooks
+- Tailwind CSS + Lucide icons + Framer Motion 
+- Mobile responsive + dark mode + glassmorphism + micro-animations
+- Working React hooks 
 - No external data calls
 {AI_FEATURES}
 
@@ -97,6 +101,13 @@ Output working tool:`
 
 export const AI_FEATURES_INJECTION = `
 GROQ USAGE NOTES:
+- Showcase premium visuals using modern open-source CDN packages (Tailwind, Framer Motion, Lucide, Recharts, etc.) with gradients, depth, layered glassmorphism, and delightful micro-animations.
+- When rendering AI responses, format content in Markdown (headings, emphasis, lists) and display it beautifully using a Markdown parser such as marked (via CDN) or react-markdown with styled containers.
+- Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
+- Write modular helper functions as needed but keep everything within a single file.
+- For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
+- Ensure no TODOs, placeholders, or comments remain. All data and logic must be production-ready.
+- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
 - Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
 - Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
 - Send the selected model '{MODEL_ID}' alongside any messages payload.
