@@ -863,7 +863,8 @@ class GroqService {
     cleaned = cleaned.replace(/process\.env\.GROQ_API_KEY/g, 'getMorphicGroqKey()');
 
     if (!/function\s+getMorphicGroqKey\s*\(/.test(cleaned)) {
-      cleaned = `function getMorphicGroqKey() {\n  if (typeof window !== 'undefined' && window.__MORPHIC_GROQ_KEY__) {\n    return window.__MORPHIC_GROQ_KEY__;\n  }\n  if (typeof localStorage !== 'undefined') {\n    return localStorage.getItem('groq-api-key') || '';\n  }\n  return '';\n}\n\n${cleaned}`;
+      cleaned = `function getMorphicGroqKey() {\n  const readKey = (context) => {\n    if (!context) return '';\n    if (context.__MORPHIC_GROQ_KEY__) {\n      return context.__MORPHIC_GROQ_KEY__;
+    }\n    try {\n      if (context.localStorage) {\n        const stored = context.localStorage.getItem('groq-api-key');\n        if (stored) return stored;\n      }\n    } catch (err) {\n      // ignore storage access errors\n    }\n    return '';\n  };\n  if (typeof window !== 'undefined') {\n    const direct = readKey(window);\n    if (direct) return direct;\n    if (window.parent && window.parent !== window) {\n      const parentKey = readKey(window.parent);\n      if (parentKey) return parentKey;\n    }\n  }\n  return '';\n}\n\n${cleaned}`;
     }
 
     const componentMatch =
