@@ -296,6 +296,8 @@ class GroqService {
       return '';
     }
 
+    const targetModel = runResult?.metadata?.model || runResult?.metadata?.requestedModel || runResult?.metadata?.modelId || null;
+
     const fromArtifacts = ensureArray(runResult.artifacts).find((artifact) => {
       if (!artifact) return false;
       if (!artifact.mimeType) return false;
@@ -313,10 +315,10 @@ class GroqService {
           const maybeParsed = JSON.parse(fromArtifacts.data);
           if (maybeParsed && typeof maybeParsed === 'object') {
             if (maybeParsed.code) {
-              return this.sanitizeCode(maybeParsed.code);
+              return this.enforceModelInCode(this.sanitizeCode(maybeParsed.code), targetModel);
             }
             if (maybeParsed.app?.code) {
-              return this.sanitizeCode(maybeParsed.app.code);
+              return this.enforceModelInCode(this.sanitizeCode(maybeParsed.app.code), targetModel);
             }
           }
         }
@@ -324,7 +326,7 @@ class GroqService {
         // ignore JSON parse errors and fall through
       }
       if (typeof fromArtifacts.data === 'string') {
-        return this.sanitizeCode(fromArtifacts.data);
+        return this.enforceModelInCode(this.sanitizeCode(fromArtifacts.data), targetModel);
       }
     }
 
@@ -335,16 +337,16 @@ class GroqService {
           const parsed = JSON.parse(trimmed);
           if (parsed && typeof parsed === 'object') {
             if (parsed.code) {
-              return this.sanitizeCode(parsed.code);
+              return this.enforceModelInCode(this.sanitizeCode(parsed.code), targetModel);
             }
             if (parsed.app?.code) {
-              return this.sanitizeCode(parsed.app.code);
+              return this.enforceModelInCode(this.sanitizeCode(parsed.app.code), targetModel);
             }
           }
         } catch (error) {
           // not JSON
         }
-        return this.sanitizeCode(trimmed);
+        return this.enforceModelInCode(this.sanitizeCode(trimmed), targetModel);
       }
     }
 
@@ -353,7 +355,7 @@ class GroqService {
       .filter(Boolean)
       .join('\n');
     if (joinedMessages) {
-      return this.sanitizeCode(joinedMessages);
+      return this.enforceModelInCode(this.sanitizeCode(joinedMessages), targetModel);
     }
 
     return '';
@@ -855,6 +857,11 @@ class GroqService {
 
     cleaned = cleaned.replace(/export\s+default\s*;/g, '');
 
+    // Strip hardcoded Groq API keys that may be leaked in generated code
+    cleaned = cleaned.replace(/(['"])gsk_[A-Za-z0-9]+\1/g, '"YOUR_GROQ_API_KEY"');
+    cleaned = cleaned.replace(/const\s+GROQ_API_KEY\s*=\s*(['"])[^'"\n]+\1/g, "const GROQ_API_KEY = 'YOUR_GROQ_API_KEY';");
+    cleaned = cleaned.replace(/process\.env\.GROQ_API_KEY/g, 'YOUR_GROQ_API_KEY');
+
     const componentMatch =
       cleaned.match(/function\s+([A-Z][A-Za-z0-9_]*)\s*\(/) ||
       cleaned.match(/const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*\(/) ||
@@ -873,6 +880,30 @@ class GroqService {
     }
 
     return cleaned.trim();
+  }
+
+  enforceModelInCode(code, modelId) {
+    if (!code || !modelId) {
+      return code;
+    }
+
+    const safeModel = modelId.replace(/`/g, '');
+
+    const replaceModelLiteral = (match, quote) => `${quote}${safeModel}${quote}`;
+
+    let updated = code
+      .replace(/model\s*:\s*['"]([^'"\n]+)['"]/g, (full, existing) => {
+        return full.replace(existing, safeModel);
+      })
+      .replace(/const\s+GROQ_MODEL\s*=\s*(['"])([^'"\n]+)\1/g, (full, quote) => `const GROQ_MODEL = ${quote}${safeModel}${quote}`)
+      .replace(/const\s+SELECTED_MODEL\s*=\s*(['"])([^'"\n]+)\1/g, (full, quote) => `const SELECTED_MODEL = ${quote}${safeModel}${quote}`)
+      .replace(/['"]groq\/compound['"]/g, (full) => replaceModelLiteral(full[0], full[0]))
+      .replace(/['"]meta-llama\/llama-3\.1-70b-versatile['"]/g, (full) => replaceModelLiteral(full[0], full[0]));
+
+    // If code references MODEL_ID placeholder, ensure it is set to selected model
+    updated = updated.replace(/const\s+MODEL_ID\s*=\s*(['"])[^'"\n]+\1/g, (full, quote) => `const MODEL_ID = ${quote}${safeModel}${quote}`);
+
+    return updated;
   }
 
   validateCode(code) {

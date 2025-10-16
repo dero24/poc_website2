@@ -20,7 +20,13 @@ const AgentTimeline = ({ run, isGenerating, guardrailWarnings = [] }) => {
     );
   }
 
-  const summary = run.finalText?.trim();
+  const rawSummary = run.finalText?.trim();
+  const looksLikeCode = rawSummary
+    ? /(import\s+[A-Za-z*{]|export\s+default|<\w+[\s>]|const\s+[A-Z][A-Za-z0-9_]*\s*=\s*\(|function\s+[A-Z][A-Za-z0-9_]*)/.test(rawSummary)
+    : false;
+  const summary = looksLikeCode
+    ? 'Generated JSX was delivered directly to the preview sandbox.'
+    : rawSummary;
   const reasoning = Array.isArray(run.reasoning) ? run.reasoning : [];
   const toolCalls = Array.isArray(run.toolCalls) ? run.toolCalls : [];
   const manifestSummary = run.manifestSummary || null;
