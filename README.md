@@ -134,6 +134,12 @@ npm run build
 ### Deploy to Netlify/Vercel
 The app is a static React application that can be deployed to any static hosting service.
 
+### Deploy to GitHub Pages
+- **Configure base path**: Update the `base` option in `vite.config.js` to `/<repo-name>/` so assets resolve correctly when served from `https://username.github.io/<repo-name>/`.
+- **Install dependencies**: Ensure `gh-pages` is installed (`npm install`) so the `deploy` script in `package.json` is available.
+- **Deploy**: Run `npm run deploy` to build the app, create a `.nojekyll` marker, and push the contents of `dist/` to the `gh-pages` branch.
+- **Enable Pages**: In GitHub → **Settings** → **Pages**, choose **Deploy from a branch**, select the `gh-pages` branch and the root folder, then save.
+
 ## 📝 Usage Examples
 
 ### Todo App with AI
