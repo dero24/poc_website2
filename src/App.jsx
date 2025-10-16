@@ -12,6 +12,7 @@ import {
   PROMPT_TEMPLATES,
   buildPrompt
 } from './prompts/templates';
+import { APP_VERSION } from './version';
 
 const EXAMPLE_IDEAS = [
   'AI productivity hub with task insights and focus music',
@@ -40,8 +41,6 @@ const TOOL_DEFINITIONS = {
     description: 'Interprets images/screenshots to influence UI and content decisions.'
   }
 };
-
-const APP_VERSION = 'v0.5.0';
 
 const AGENT_SYSTEM_PROMPT = `You are Morphic Web's Groq compound agent. Build awe-inspiring, pixel-perfect React 18 single-file applications that obey Morphic guardrails and wow end users.
 
