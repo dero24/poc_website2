@@ -857,10 +857,14 @@ class GroqService {
 
     cleaned = cleaned.replace(/export\s+default\s*;/g, '');
 
-    // Strip hardcoded Groq API keys that may be leaked in generated code
-    cleaned = cleaned.replace(/(['"])gsk_[A-Za-z0-9]+\1/g, '"YOUR_GROQ_API_KEY"');
-    cleaned = cleaned.replace(/const\s+GROQ_API_KEY\s*=\s*(['"])[^'"\n]+\1/g, "const GROQ_API_KEY = 'YOUR_GROQ_API_KEY';");
-    cleaned = cleaned.replace(/process\.env\.GROQ_API_KEY/g, 'YOUR_GROQ_API_KEY');
+    // Replace API key literals with runtime injection helper
+    cleaned = cleaned.replace(/(['"])gsk_[A-Za-z0-9]+\1/g, 'getMorphicGroqKey()');
+    cleaned = cleaned.replace(/const\s+GROQ_API_KEY\s*=\s*(['"])[^'"\n]+\1/g, 'const GROQ_API_KEY = getMorphicGroqKey();');
+    cleaned = cleaned.replace(/process\.env\.GROQ_API_KEY/g, 'getMorphicGroqKey()');
+
+    if (!/function\s+getMorphicGroqKey\s*\(/.test(cleaned)) {
+      cleaned = `function getMorphicGroqKey() {\n  if (typeof window !== 'undefined' && window.__MORPHIC_GROQ_KEY__) {\n    return window.__MORPHIC_GROQ_KEY__;\n  }\n  if (typeof localStorage !== 'undefined') {\n    return localStorage.getItem('groq-api-key') || '';\n  }\n  return '';\n}\n\n${cleaned}`;
+    }
 
     const componentMatch =
       cleaned.match(/function\s+([A-Z][A-Za-z0-9_]*)\s*\(/) ||

@@ -144,6 +144,9 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      if (typeof window !== 'undefined') {
+        window.__MORPHIC_GROQ_KEY__ = storedKey;
+      }
     } else {
       setShowApiModal(true);
     }
@@ -418,6 +421,9 @@ function App() {
             setApiKey(key);
             groqService.setApiKey(key);
             localStorage.setItem('groq-api-key', key);
+            if (typeof window !== 'undefined') {
+              window.__MORPHIC_GROQ_KEY__ = key;
+            }
             setShowApiModal(false);
             // Refresh available models with the new API key
             try {

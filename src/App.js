@@ -158,6 +158,9 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      if (typeof window !== 'undefined') {
+        window.__MORPHIC_GROQ_KEY__ = storedKey;
+      }
     } else {
       setShowApiModal(true);
     }
@@ -200,6 +203,9 @@ function App() {
     localStorage.setItem('groq-api-key', trimmed);
     groqService.setApiKey(trimmed);
     setApiKey(trimmed);
+    if (typeof window !== 'undefined') {
+      window.__MORPHIC_GROQ_KEY__ = trimmed;
+    }
     setShowApiModal(false);
     groqService.refreshModels().then((list) => {
       setModelOptions(list);
