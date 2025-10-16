@@ -1,14 +1,12 @@
 // Groq API service for code generation
 
 const SUPPORTED_MODELS = [
-  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B · Agentic', capabilities: ['agentic', 'tool-use', 'analysis'], supportsTools: true },
-  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B · Advanced Reasoning', capabilities: ['agentic', 'tool-use', 'analysis', 'vision'], supportsTools: true },
-  { id: 'moonshotai/kimi-k2-instruct-0905', label: 'Kimi K2 · Creative Agent', capabilities: ['agentic', 'analysis'], supportsTools: true },
-  { id: 'qwen/qwen3-32b', label: 'Qwen3 32B · Multilingual', capabilities: ['agentic', 'analysis'], supportsTools: true },
-  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B · Balanced', capabilities: ['agentic', 'tool-use'], supportsTools: true },
-  { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B · Exploration', capabilities: ['agentic', 'analysis'], supportsTools: true },
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'tool-use', 'analysis'], supportsTools: true },
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false }
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'llama-3.2-1b-preview', label: 'Llama 3.2 1B · Preview', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'llama-3.2-3b-preview', label: 'Llama 3.2 3B · Preview', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', capabilities: ['agentic', 'analysis'], supportsTools: true },
+  { id: 'gemma-7b-it', label: 'Gemma 7B', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'gemma2-9b-it', label: 'Gemma 2 9B', capabilities: ['fast-draft'], supportsTools: false }
 ];
 
 const DEFAULT_TOOL_REGISTRY = [
@@ -466,9 +464,26 @@ class GroqService {
       payload.response_format = responseFormat;
     }
 
-    const endpoint = `${this.baseUrl}/responses`;
+    const endpoint = `${this.baseUrl}/chat/completions`;
+    
+    // Convert to standard OpenAI format
+    const openaiPayload = {
+      model: payload.model,
+      messages: payload.input.map(msg => ({
+        role: msg.role,
+        content: msg.content.map(c => c.text).join('')
+      })),
+      stream: payload.stream,
+      ...payload
+    };
+    
+    // Remove non-OpenAI fields
+    delete openaiPayload.input;
+    delete openaiPayload.tools;
+    delete openaiPayload.metadata;
+    
     if (payload.stream) {
-      return this.runAgenticWorkflowStream(endpoint, payload);
+      return this.runAgenticWorkflowStream(endpoint, openaiPayload);
     }
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -476,7 +491,7 @@ class GroqService {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(openaiPayload)
     });
 
     if (!response.ok) {
@@ -491,7 +506,7 @@ class GroqService {
     }
 
     const data = await response.json();
-    const normalized = this.normalizeResponse(data, payload.model);
+    const normalized = this.normalizeOpenAIResponse(data, openaiPayload.model);
     this.lastRun = normalized;
     return normalized;
   }
@@ -572,6 +587,40 @@ class GroqService {
     const normalized = this.normalizeResponse(finalPayload || {}, payload.model, events);
     this.lastRun = normalized;
     return normalized;
+  }
+
+  normalizeOpenAIResponse(data, requestedModel) {
+    if (!data || !data.choices || !data.choices[0]) {
+      return {
+        id: data?.id || null,
+        status: 'failed',
+        messages: [],
+        finalText: '',
+        reasoning: [],
+        toolCalls: [],
+        artifacts: [],
+        metadata: { model: requestedModel || null, usage: data?.usage || null },
+        raw: data
+      };
+    }
+
+    const choice = data.choices[0];
+    const content = choice.message?.content || '';
+    
+    return {
+      id: data.id || null,
+      status: 'completed',
+      messages: [{ role: 'assistant', text: content }],
+      finalText: content,
+      reasoning: [],
+      toolCalls: [],
+      artifacts: [],
+      metadata: {
+        model: data.model || requestedModel || null,
+        usage: data.usage || null
+      },
+      raw: data
+    };
   }
 
   normalizeResponse(payload, requestedModel, streamEvents = []) {
