@@ -415,11 +415,17 @@ function App() {
 
       {showApiModal ? (
         <ApiKeyModal
-          onSubmit={(key) => {
+          onSubmit={async (key) => {
             setApiKey(key);
             groqService.setApiKey(key);
             localStorage.setItem('groq-api-key', key);
             setShowApiModal(false);
+            // Refresh available models with the new API key
+            try {
+              await groqService.refreshModels();
+            } catch (error) {
+              console.error('Failed to refresh models:', error);
+            }
           }}
           onClose={() => setShowApiModal(false)}
           currentKey={apiKey}

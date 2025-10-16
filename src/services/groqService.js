@@ -1,12 +1,16 @@
 // Groq API service for code generation
 
 const SUPPORTED_MODELS = [
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false },
-  { id: 'llama-3.2-1b-preview', label: 'Llama 3.2 1B · Preview', capabilities: ['fast-draft'], supportsTools: false },
-  { id: 'llama-3.2-3b-preview', label: 'Llama 3.2 3B · Preview', capabilities: ['fast-draft'], supportsTools: false },
-  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', capabilities: ['agentic', 'analysis'], supportsTools: true },
-  { id: 'gemma-7b-it', label: 'Gemma 7B', capabilities: ['fast-draft'], supportsTools: false },
-  { id: 'gemma2-9b-it', label: 'Gemma 2 9B', capabilities: ['fast-draft'], supportsTools: false }
+  { id: 'groq/compound', label: 'Groq Compound · MCP Agent', capabilities: ['agentic', 'tool-use', 'mcp'], supportsTools: true },
+  { id: 'groq/compound-mini', label: 'Groq Compound Mini · Fast MCP', capabilities: ['agentic', 'tool-use', 'mcp'], supportsTools: true },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: true },
+  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B · Advanced', capabilities: ['agentic', 'tool-use'], supportsTools: true },
+  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B · Balanced', capabilities: ['agentic', 'tool-use'], supportsTools: true },
+  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B', capabilities: ['agentic'], supportsTools: true },
+  { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B', capabilities: ['agentic'], supportsTools: true },
+  { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2 · Creative', capabilities: ['agentic'], supportsTools: true },
+  { id: 'qwen/qwen3-32b', label: 'Qwen3 32B · Multilingual', capabilities: ['agentic'], supportsTools: true },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false }
 ];
 
 const DEFAULT_TOOL_REGISTRY = [
@@ -144,6 +148,38 @@ class GroqService {
     this.lastRun = null;
   }
 
+  formatModelDisplayName(id = '') {
+    if (!id) return 'Unknown Model';
+    
+    // Handle special cases
+    if (id.includes('compound')) {
+      return id.includes('mini') ? 'Groq Compound Mini · Fast MCP' : 'Groq Compound · MCP Agent';
+    }
+    if (id.includes('gpt-oss')) {
+      const size = id.includes('120b') ? '120B · Advanced' : '20B · Balanced';
+      return `GPT-OSS ${size}`;
+    }
+    if (id.includes('llama-4')) {
+      const variant = id.includes('maverick') ? 'Maverick' : 'Scout';
+      return `Llama 4 ${variant} 17B`;
+    }
+    if (id.includes('llama-3.3')) {
+      return 'Llama 3.3 70B · Versatile';
+    }
+    if (id.includes('llama-3.1')) {
+      return 'Llama 3.1 8B · Instant';
+    }
+    if (id.includes('kimi')) {
+      return 'Kimi K2 · Creative';
+    }
+    if (id.includes('qwen3')) {
+      return 'Qwen3 32B · Multilingual';
+    }
+    
+    // Default formatting
+    return formatModelLabel(id);
+  }
+
   setApiKey(apiKey) {
     this.apiKey = apiKey;
   }
@@ -186,12 +222,35 @@ class GroqService {
 
       const payload = await response.json();
       const models = Array.isArray(payload?.data)
-        ? payload.data.map((model) => ({
-            id: model.id,
-            label: model.display_name || formatModelLabel(model.id),
-            capabilities: ensureArray(model.capabilities || model.tags || []),
-            supportsTools: Boolean(model.supports_tool_use || model.capabilities?.includes('tool-use'))
-          }))
+        ? payload.data
+            .filter((model) => {
+              // Filter out non-text generation models
+              const isTextModel = !model.id.includes('whisper') && 
+                                 !model.id.includes('tts') && 
+                                 !model.id.includes('guard') &&
+                                 !model.id.includes('prompt-guard');
+              return isTextModel;
+            })
+            .map((model) => {
+              // Determine capabilities based on model characteristics
+              const isMCP = model.id.includes('compound') || model.id.includes('gpt-oss');
+              const isLarge = model.id.includes('120b') || model.id.includes('70b') || model.id.includes('32b');
+              const isInstant = model.id.includes('instant') || model.id.includes('8b');
+              
+              let capabilities = [];
+              if (isMCP) capabilities.push('agentic', 'tool-use', 'mcp');
+              else if (isLarge) capabilities.push('agentic', 'analysis');
+              else if (isInstant) capabilities.push('fast-draft');
+              else capabilities.push('agentic');
+              
+              return {
+                id: model.id,
+                label: model.display_name || this.formatModelDisplayName(model.id),
+                capabilities,
+                supportsTools: isMCP || isLarge,
+                owner: model.owned_by
+              };
+            })
         : [];
 
       if (models.length) {
