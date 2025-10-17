@@ -550,10 +550,46 @@ class GroqService {
     const useResponsesApi = /compound/i.test(payload.model);
     if (useResponsesApi) {
       const responsesEndpoint = `${this.baseUrl}/responses`;
+      const normalizeTool = (tool) => {
+        if (!tool || tool.enabled === false) {
+          return null;
+        }
+
+        if (tool.type === 'groq-builtin' || tool.type === 'builtin' || tool.type === 'builtin-tool') {
+          return {
+            type: 'builtin',
+            name: tool.name
+          };
+        }
+
+        if (tool.type === 'mcp' || tool.type === 'mcp-tool') {
+          return {
+            type: 'mcp',
+            name: tool.name,
+            server: tool.server || tool.serverName || null,
+            tool_name: tool.toolName || tool.name,
+            arguments_schema: tool.arguments_schema || tool.argumentsSchema || null
+          };
+        }
+
+        if (tool.type === 'function' && tool.function) {
+          return {
+            type: 'function',
+            function: tool.function
+          };
+        }
+
+        return null;
+      };
+
+      const responsesTools = ensureArray(payload.tools)
+        .map(normalizeTool)
+        .filter(Boolean);
+
       const responsesPayload = {
         model: payload.model,
         input: payload.input,
-        tools: payload.tools,
+        tools: responsesTools,
         stream: false, // Disable streaming for now
         metadata: payload.metadata,
         ...requestParameters
