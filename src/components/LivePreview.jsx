@@ -41,68 +41,130 @@ const LEGACY_BODY_STYLE = `body { margin: 0; padding: 0; font-family: -apple-sys
 .error-message { color: #744210; }`;
 
 const buildLegacyRuntimeScript = (code) => {
-  const runtimeContent = `const { useState, useEffect, useRef, useMemo, useCallback } = React;
+  const runtimeContent = `
+// Wait for critical CDN scripts to load
+function initializeApp() {
+  console.log('🎯 Initializing React app...');
 
-// Enhanced CDN package resolution
+  const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// Enhanced CDN package resolution with robust fallbacks
 window.require = function(packageName) {
   const packageMap = {
-    'react': React,
-    'react-dom': ReactDOM,
-    'framer-motion': window.FramerMotion || {
-      motion: React.forwardRef((props, ref) => {
-        const { children, ...motionProps } = props;
-        // Remove motion-specific props that might cause issues
-        const safeProps = { ...motionProps };
-        delete safeProps.initial;
-        delete safeProps.animate;
-        delete safeProps.exit;
-        delete safeProps.transition;
-        delete safeProps.variants;
-        delete safeProps.whileHover;
-        delete safeProps.whileTap;
-        return React.createElement(props.as || 'div', { ...safeProps, ref }, children);
+    'react': window.React || {
+      createElement: (type, props, ...children) => {
+        if (typeof type === 'function') {
+          return type(props || {}, ...children);
+        }
+        const element = { type, props: props || {}, children };
+        return element;
+      },
+      useState: (initial) => {
+        let state = initial;
+        const setState = (newState) => { state = newState; };
+        return [state, setState];
+      },
+      useEffect: () => {},
+      useRef: () => ({ current: null }),
+      useMemo: (fn) => fn(),
+      useCallback: (fn) => fn,
+      forwardRef: (fn) => fn,
+      Fragment: 'fragment'
+    },
+    'react-dom': window.ReactDOM || {
+      createRoot: (container) => ({
+        render: (element) => {
+          container.innerHTML = '<div>React DOM not loaded - basic fallback</div>';
+        }
       })
     },
+    'framer-motion': window.FramerMotion || {
+      motion: {
+        div: 'div',
+        button: 'button',
+        span: 'span',
+        p: 'p',
+        h1: 'h1',
+        h2: 'h2',
+        h3: 'h3',
+        h4: 'h4',
+        h5: 'h5',
+        h6: 'h6'
+      }
+    },
     'lucide-react': window.LucideReact || {
-      // Common icons as basic divs with emoji fallbacks
-      AiOutlineCloud: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '☁️'),
-      CheckCircle: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '✅'),
-      AlertTriangle: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚠️'),
-      RefreshCw: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '🔄'),
-      ExternalLink: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '🔗'),
-      Sparkles: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '✨'),
-      Code: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '💻'),
-      Play: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '▶️'),
-      History: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '📜'),
-      Settings: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚙️'),
-      Zap: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚡')
+      // Complete icon mapping with fallbacks
+      CheckCircle: () => '✅',
+      AlertTriangle: () => '⚠️',
+      RefreshCw: () => '🔄',
+      ExternalLink: () => '🔗',
+      Sparkles: () => '✨',
+      Code: () => '💻',
+      Play: () => '▶️',
+      History: () => '📜',
+      Settings: () => '⚙️',
+      Zap: () => '⚡',
+      Home: () => '🏠',
+      User: () => '👤',
+      Search: () => '🔍',
+      Menu: () => '☰',
+      X: () => '✕',
+      Plus: () => '➕',
+      Minus: () => '➖',
+      Star: () => '⭐',
+      Heart: () => '❤️',
+      Eye: () => '👁️',
+      Download: () => '📥',
+      Upload: () => '📤',
+      Trash: () => '🗑️',
+      Edit: () => '✏️',
+      Save: () => '💾',
+      Copy: () => '📋',
+      Share: () => '📤',
+      // Add more common icons as needed
+      ChevronDown: () => '▼',
+      ChevronUp: () => '▲',
+      ChevronLeft: () => '◀️',
+      ChevronRight: () => '▶️'
     },
     'recharts': window.Recharts || {
-      LineChart: (props) => React.createElement('div', { ...props, style: { padding: '20px', border: '1px solid #ccc', borderRadius: '8px', ...props.style } }, '📊 Chart Placeholder'),
+      LineChart: () => '📊 Line Chart Placeholder',
+      BarChart: () => '📊 Bar Chart Placeholder',
+      PieChart: () => '📊 Pie Chart Placeholder',
+      AreaChart: () => '📊 Area Chart Placeholder',
       Line: () => null,
+      Bar: () => null,
+      Pie: () => null,
+      Area: () => null,
       XAxis: () => null,
       YAxis: () => null,
       CartesianGrid: () => null,
       Tooltip: () => null,
-      ResponsiveContainer: (props) => React.createElement('div', props, props.children)
+      Legend: () => null,
+      ResponsiveContainer: ({ children }) => children || '📊 Chart Container'
     },
-    'axios': window.axios || { 
-      get: () => Promise.resolve({ data: {} }), 
-      post: () => Promise.resolve({ data: {} }),
-      put: () => Promise.resolve({ data: {} }),
-      delete: () => Promise.resolve({ data: {} })
+    'axios': window.axios || {
+      get: (url) => Promise.resolve({ data: { message: 'Mock data for ' + url } }),
+      post: (url, data) => Promise.resolve({ data: { success: true, received: data } }),
+      put: (url, data) => Promise.resolve({ data: { success: true, updated: data } }),
+      delete: (url) => Promise.resolve({ data: { success: true, deleted: url } }),
+      // Add more HTTP methods as needed
+      patch: (url, data) => Promise.resolve({ data: { success: true, patched: data } }),
+      head: (url) => Promise.resolve({ status: 200 })
     },
-    'marked': window.marked || { 
-      parse: (text) => text,
-      parseInline: (text) => text
+    'marked': window.marked || {
+      parse: (text) => text ? text.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>').replace(/_(.*?)_/g, '<em>$1</em>') : '',
+      parseInline: (text) => text || ''
     }
   };
-  
-  if (packageMap[packageName]) {
-    return packageMap[packageName];
+
+  const pkg = packageMap[packageName];
+  if (pkg) {
+    console.log('✅ Loaded package: ' + packageName);
+    return pkg;
   }
-  
-  console.warn(\`Package '\${packageName}' not available in CDN preview. Using fallback.\`);
+
+  console.warn('⚠️ Package \'' + packageName + '\' not available, using empty fallback');
   return {};
 };
 
@@ -131,6 +193,9 @@ function getMorphicGroqKey() {
 }
 window.getMorphicGroqKey = getMorphicGroqKey;
 
+${escapeInlineScript(code)}
+
+// Error boundary for React app
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -156,8 +221,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-${escapeInlineScript(code)}
-
 try {
   const AppComponent = typeof App !== 'undefined'
     ? App
@@ -171,9 +234,19 @@ try {
   );
 
   window.parent?.postMessage({ type: 'preview-loaded', success: true }, '*');
+  console.log('✅ App rendered successfully');
 } catch (error) {
-  console.error('Render error:', error);
+  console.error('💥 Render error:', error);
   window.parent?.postMessage({ type: 'preview-error', error: error?.message || 'Render error' }, '*');
+}
+}
+
+// Make initializeApp available globally
+window.initializeApp = initializeApp;
+
+// If CDN is already ready, initialize immediately
+if (window.CDN_READY) {
+  initializeApp();
 }`;
 
   return createScriptTag({ type: 'text/babel', content: runtimeContent });
@@ -218,21 +291,92 @@ const DEFAULT_LIB_SCRIPTS = [
 const DEFAULT_STYLE_SCRIPT = createScriptTag({ src: 'https://cdn.tailwindcss.com' });
 
 const buildLegacyDocument = (code) => {
+  // Enhanced CDN loading with error handling and fallbacks
+  const cdnScripts = `
+    <script>
+      window.CDN_LOADING_PROMISES = [];
+      window.CDN_LOADED_PACKAGES = {};
+
+      function loadCDNScript(src, packageName, globalVar) {
+        return new Promise((resolve, reject) => {
+          if (window.CDN_LOADED_PACKAGES[packageName]) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement('script');
+          script.src = src;
+          script.crossOrigin = 'anonymous';
+          script.onload = () => {
+            console.log('✅ CDN loaded:', packageName);
+            window.CDN_LOADED_PACKAGES[packageName] = true;
+            resolve();
+          };
+          script.onerror = () => {
+            console.warn('⚠️ CDN failed for:', packageName, '- using fallback');
+            window.CDN_LOADED_PACKAGES[packageName] = false;
+            resolve(); // Don't reject, just continue with fallback
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      // Load React first (critical)
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/react@18/umd/react.development.js', 'react', 'React')
+      );
+
+      // Load ReactDOM second (critical)
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/react-dom@18/umd/react-dom.development.js', 'react-dom', 'ReactDOM')
+      );
+
+      // Load Babel (critical for JSX)
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/@babel/standalone/babel.min.js', 'babel', 'Babel')
+      );
+
+      // Load optional packages
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/framer-motion@11/dist/framer-motion.js', 'framer-motion', 'FramerMotion')
+      );
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js', 'lucide-react', 'LucideReact')
+      );
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/recharts@2.8.0/umd/Recharts.js', 'recharts', 'Recharts')
+      );
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/axios@1.5.0/dist/axios.min.js', 'axios', 'axios')
+      );
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://unpkg.com/marked@9.1.2/marked.min.js', 'marked', 'marked')
+      );
+
+      // Load TailwindCSS
+      window.CDN_LOADING_PROMISES.push(
+        loadCDNScript('https://cdn.tailwindcss.com', 'tailwindcss', 'tailwindcss')
+      );
+
+      // Wait for critical scripts, then initialize
+      Promise.all(window.CDN_LOADING_PROMISES.slice(0, 3)).then(() => {
+        console.log('🚀 Critical CDN scripts loaded, initializing app...');
+        window.CDN_READY = true;
+        // Trigger app initialization
+        if (window.initializeApp) {
+          window.initializeApp();
+        }
+      });
+    </script>
+  `;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Generated App Preview</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/framer-motion@11/dist/framer-motion.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/axios@1.5.0/dist/axios.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/marked@9.1.2/marked.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  ${cdnScripts}
   <style>body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
 .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
 .error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
@@ -326,11 +470,11 @@ const LivePreview = ({ app }) => {
 
     const handleMessage = (event) => {
       if (event.data.type === 'preview-loaded') {
-        console.log('Preview loaded successfully');
+        console.log('✅ Preview loaded successfully');
         setIsLoading(false);
         setPreviewError(null);
       } else if (event.data.type === 'preview-error') {
-        console.log('Preview error:', event.data.error);
+        console.error('❌ Preview error:', event.data.error);
         setIsLoading(false);
         setPreviewError(event.data.error);
       }
@@ -338,61 +482,28 @@ const LivePreview = ({ app }) => {
 
     window.addEventListener('message', handleMessage);
 
-    // Load the preview
+    // Load the preview immediately
     const iframe = iframeRef.current;
     if (iframe) {
       try {
-        // Test with a simple hardcoded working app first
-        const testCode = `
-const App = () => {
-  const [count, setCount] = useState(0);
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Test App</h1>
-        <div className="space-y-4">
-          <p className="text-gray-600">If you can see this, the preview is working!</p>
-          <div className="flex items-center justify-center space-x-4">
-            <button 
-              onClick={() => setCount(count - 1)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-            >
-              -
-            </button>
-            <span className="text-2xl font-bold text-gray-800">{count}</span>
-            <button 
-              onClick={() => setCount(count + 1)}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+        const htmlContent = createPreviewDocument(app);
+        console.log('🚀 Loading preview, content length:', htmlContent.length);
 
-const GeneratedApp = App;`;
+        // Clear any existing content first
+        iframe.srcdoc = '';
 
-        const htmlContent = buildLegacyDocument(testCode);
-        console.log('Loading test app, content length:', htmlContent.length);
-        iframe.srcdoc = htmlContent;
-        
-        // After 2 seconds, try loading the actual generated app
+        // Small delay to ensure iframe is ready, then set content
         setTimeout(() => {
-          if (app?.code) {
-            const realContent = createPreviewDocument(app);
-            console.log('Loading real app, content length:', realContent.length);
-            iframe.srcdoc = realContent;
+          if (iframe && iframe.parentNode) { // Make sure iframe is still mounted
+            iframe.srcdoc = htmlContent;
+            console.log('📄 Iframe content set successfully');
           }
-        }, 2000);
-        
+        }, 50);
+
       } catch (error) {
-        console.error('Preview setup error:', error);
+        console.error('💥 Preview setup error:', error);
         setIsLoading(false);
-        setPreviewError(error.message || 'Preview manifest missing or invalid.');
+        setPreviewError(error.message || 'Preview setup failed');
       }
     }
 
