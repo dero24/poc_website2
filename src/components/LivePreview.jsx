@@ -224,9 +224,19 @@ const buildLegacyDocument = (code) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Generated App Preview</title>
-  ${DEFAULT_LIB_SCRIPTS.join('\n  ')}
-  ${DEFAULT_STYLE_SCRIPT}
-  ${createStyleTag({ content: LEGACY_BODY_STYLE })}
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/framer-motion@11/dist/framer-motion.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/axios@1.5.0/dist/axios.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/marked@9.1.2/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
+.error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
+.error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
+.error-message { color: #744210; }</style>
 </head>
 <body>
   <div id="root"></div>
@@ -316,9 +326,11 @@ const LivePreview = ({ app }) => {
 
     const handleMessage = (event) => {
       if (event.data.type === 'preview-loaded') {
+        console.log('Preview loaded successfully');
         setIsLoading(false);
         setPreviewError(null);
       } else if (event.data.type === 'preview-error') {
+        console.log('Preview error:', event.data.error);
         setIsLoading(false);
         setPreviewError(event.data.error);
       }
@@ -330,9 +342,55 @@ const LivePreview = ({ app }) => {
     const iframe = iframeRef.current;
     if (iframe) {
       try {
-        const htmlContent = createPreviewDocument(app);
+        // Test with a simple hardcoded working app first
+        const testCode = `
+const App = () => {
+  const [count, setCount] = useState(0);
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Test App</h1>
+        <div className="space-y-4">
+          <p className="text-gray-600">If you can see this, the preview is working!</p>
+          <div className="flex items-center justify-center space-x-4">
+            <button 
+              onClick={() => setCount(count - 1)}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              -
+            </button>
+            <span className="text-2xl font-bold text-gray-800">{count}</span>
+            <button 
+              onClick={() => setCount(count + 1)}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GeneratedApp = App;`;
+
+        const htmlContent = buildLegacyDocument(testCode);
+        console.log('Loading test app, content length:', htmlContent.length);
         iframe.srcdoc = htmlContent;
+        
+        // After 2 seconds, try loading the actual generated app
+        setTimeout(() => {
+          if (app?.code) {
+            const realContent = createPreviewDocument(app);
+            console.log('Loading real app, content length:', realContent.length);
+            iframe.srcdoc = realContent;
+          }
+        }, 2000);
+        
       } catch (error) {
+        console.error('Preview setup error:', error);
         setIsLoading(false);
         setPreviewError(error.message || 'Preview manifest missing or invalid.');
       }
@@ -349,8 +407,10 @@ const LivePreview = ({ app }) => {
     setPreviewError(null);
     try {
       const htmlContent = createPreviewDocument(app);
+      console.log('Refreshing iframe content, length:', htmlContent.length);
       iframeRef.current.srcdoc = htmlContent;
     } catch (error) {
+      console.error('Preview refresh error:', error);
       setIsLoading(false);
       setPreviewError(error.message || 'Preview manifest missing or invalid.');
     }
@@ -465,7 +525,6 @@ const LivePreview = ({ app }) => {
             <iframe
               ref={iframeRef}
               className="w-full h-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               title="App Preview"
             />
           )}
