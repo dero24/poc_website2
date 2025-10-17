@@ -228,8 +228,10 @@ window.require = function(packageName) {
       useRef: () => ({ current: null }),
       useMemo: (fn) => fn(),
       useCallback: (fn) => fn,
-      forwardRef: (renderFn) => renderFn, // Simple fallback - just return the function
-      Fragment: 'fragment',
+      forwardRef: (renderFn) => {
+        // Return the render function directly for simple cases
+        return renderFn;
+      },
       Component: class {
         constructor(props) {
           this.props = props;
@@ -251,18 +253,27 @@ window.require = function(packageName) {
       })
     },
     'framer-motion': window.FramerMotion || {
-      motion: {
-        div: 'div',
-        button: 'button',
-        span: 'span',
-        p: 'p',
-        h1: 'h1',
-        h2: 'h2',
-        h3: 'h3',
-        h4: 'h4',
-        h5: 'h5',
-        h6: 'h6'
-      }
+      motion: new Proxy({}, {
+        get(target, prop) {
+          // Return a function that creates React elements with motion-like props
+          return (props) => {
+            const { children, ...otherProps } = props || {};
+            // Remove framer-motion specific props that might cause issues
+            const cleanProps = { ...otherProps };
+            delete cleanProps.initial;
+            delete cleanProps.animate;
+            delete cleanProps.exit;
+            delete cleanProps.transition;
+            delete cleanProps.variants;
+            delete cleanProps.whileHover;
+            delete cleanProps.whileTap;
+            delete cleanProps.drag;
+            delete cleanProps.dragConstraints;
+            return React.createElement(prop, cleanProps, children);
+          };
+        }
+      }),
+      AnimatePresence: ({ children }) => children || null
     },
     'lucide-react': window.LucideReact || {
       // Complete icon mapping with fallbacks
@@ -299,6 +310,34 @@ window.require = function(packageName) {
       ChevronLeft: () => '◀️',
       ChevronRight: () => '▶️'
     },
+    // Add Lucide component for dynamic icon usage
+    Lucide: ({ name, className, ...props }) => {
+      const icons = {
+        loader: '⏳',
+        'loader-2': '⏳',
+        check: '✓',
+        x: '✕',
+        plus: '➕',
+        minus: '➖',
+        search: '🔍',
+        heart: '❤️',
+        star: '⭐',
+        home: '🏠',
+        user: '👤',
+        settings: '⚙️',
+        menu: '☰',
+        close: '✕',
+        edit: '✏️',
+        trash: '🗑️',
+        download: '📥',
+        upload: '📤',
+        share: '📤',
+        copy: '📋',
+        save: '💾'
+      };
+      const icon = icons[name] || '❓';
+      return React.createElement('span', { className, ...props }, icon);
+    }
     'recharts': window.Recharts || {
       LineChart: () => '📊 Line Chart Placeholder',
       BarChart: () => '📊 Bar Chart Placeholder',
