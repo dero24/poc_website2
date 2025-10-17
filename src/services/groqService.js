@@ -7,8 +7,6 @@ import {
 } from '../prompts/templates.js';
 
 const SUPPORTED_MODELS = [
-  { id: 'groq/compound', label: 'Groq Compound · Advanced Agent', capabilities: ['agentic'], supportsTools: false },
-  { id: 'groq/compound-mini', label: 'Groq Compound Mini · Fast Agent', capabilities: ['agentic'], supportsTools: false },
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
   { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false },
@@ -154,9 +152,6 @@ class GroqService {
     if (!id) return 'Unknown Model';
 
     // Handle special cases
-    if (id.includes('compound')) {
-      return id.includes('mini') ? 'Groq Compound Mini · Fast Agent' : 'Groq Compound · Advanced Agent';
-    }
     if (id.includes('gpt-oss')) {
       const size = id.includes('120b') ? '120B · Advanced' : '20B · Balanced';
       return `GPT-OSS ${size}`;
@@ -865,7 +860,7 @@ class GroqService {
     return this.sanitizeBlueprint(parsed);
   }
 
-  async generateBlueprint({ appIdea, context = {}, modelId = 'groq/compound', requestParameters = {} }) {
+  async generateBlueprint({ appIdea, context = {}, modelId = 'llama-3.1-70b-versatile', requestParameters = {} }) {
     if (!appIdea?.trim()) {
       throw new Error('App idea is required to generate a blueprint');
     }
@@ -894,7 +889,7 @@ class GroqService {
     return { run, blueprint };
   }
 
-  async generateImplementation({ blueprint, context = {}, modelId = 'groq/compound', requestParameters = {} }) {
+  async generateImplementation({ blueprint, context = {}, modelId = 'llama-3.1-70b-versatile', requestParameters = {} }) {
     if (!blueprint) {
       throw new Error('Blueprint data is required before implementation');
     }

@@ -68,8 +68,20 @@ window.require = function(packageName) {
       useRef: () => ({ current: null }),
       useMemo: (fn) => fn(),
       useCallback: (fn) => fn,
-      forwardRef: (fn) => fn,
-      Fragment: 'fragment'
+      forwardRef: (renderFn) => renderFn, // Simple fallback - just return the function
+      Fragment: 'fragment',
+      Component: class {
+        constructor(props) {
+          this.props = props;
+          this.state = {};
+        }
+        setState(newState) {
+          this.state = { ...this.state, ...newState };
+        }
+        render() {
+          return null;
+        }
+      }
     },
     'react-dom': window.ReactDOM || {
       createRoot: (container) => ({
