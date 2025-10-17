@@ -1,19 +1,18 @@
-# Next-Generation Groq Agent Blueprint
+# Morphic Web Agent Architecture
 
 ## Goals
 - **Deliver premium experiences every time.** Generated apps must feel bespoke: polished visuals, rich motion, and purposeful AI behavior.
-- **Exploit Groq MCP strengths.** Use the Responses API for agentic workflows with tools, but keep a graceful fallback to Chat Completions for legacy models.
-- **Structure multi-pass creativity.** Treat the agent like a product team: plan, implement, and refine rather than dumping a single-shot JSX file.
-- **Enforce resilient prompt injection.** Keep system prompts short but context-rich, and dynamically inject app-specific guardrails so rogue user prompts cannot hijack the flow.
-- **Stay browser-friendly.** Generated code must compile in our sandbox, reuse the stored API key, and rely only on CDN-deliverable packages.
+- **Streamlined two-pass workflow.** Blueprint → implementation for consistent, high-quality results.
+- **CDN-only architecture.** Generated code must compile in our sandbox using only browser-safe CDN packages.
+- **Concise but effective prompts.** Keep system prompts short while maintaining quality and functionality.
 
-## Proposed Pipeline
+## Current Pipeline
 1. **Preflight (App.jsx / App.js)**
-   - Collect the user brief, selected model, enabled tools, and theme preferences.
-   - Generate a `promptContext` object (includes API key placeholder, panel copy, design tone) to drive later prompt injections.
+   - Collect the user brief, selected model, and theme preferences.
+   - Generate a `promptContext` object (includes API key placeholder, design tone) to drive later prompt injections.
 
 2. **Phase A – Concept Blueprint (`groqService.generateBlueprint`)**
-   - Call Groq MCP (model `groq/compound`) with a prompt that asks for:
+   - Call Groq API with a prompt that asks for:
      - Problem framing, target audience, differentiators.
      - Proposed data structures, open-source assets, and AI feature hooks.
      - UI storyboard (sections, components, interactions).
@@ -78,7 +77,6 @@
 ## Risks & Mitigations
 - **Token usage**: Two-pass prompts increase context size. Use concise schemas and strip redundant instructions (e.g., leverage shared `AI_FEATURES_INJECTION`).
 - **Latency**: Provide user feedback (loading states, reasoner logs). Allow skipping enhancement pass for quicker drafts.
-- **Sandbox limits**: Auto-detect heavy dependencies and swap them for light CDN equivalents, warning users when fallback occurs.
 
 ## Next Steps
 1. Implement blueprint request/validation in `groqService` with tests for schema compliance.
@@ -86,3 +84,8 @@
 3. Update prompt templates to reference blueprint fields and the new guardrail tokens.
 4. Instrument the timeline UI to surface MCP reasoning/tool events across all phases.
 5. Evaluate optional enhancement pass after baseline dual-phase flow is stable.
+
+# AI Agent Blueprint for Morphic Web
+
+## Overview
+Morphic Web uses Groq's language models to generate sophisticated React applications through a streamlined two-pass workflow. The system combines strategic planning and implementation phases to deliver production-ready code using only CDN-available packages.

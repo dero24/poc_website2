@@ -1,9 +1,8 @@
 
-const BLUEPRINT_SYSTEM_PROMPT = `You are Morphic Web's product design strategist. Your mission is to translate a short app idea into a rich execution plan that will delight end users. Think like a creative director, UX lead, and AI systems architect collaborating together. Build layered experiences with purposeful AI behaviors, sophisticated visuals, and thoughtful interactions, all grounded in open-source browser-friendly tooling.`;
+const BLUEPRINT_SYSTEM_PROMPT = `You are Morphic Web's product strategist. Transform app ideas into detailed execution plans. Design layered experiences with AI behaviors, premium visuals, and thoughtful interactions using CDN-available packages only.`;
 
-const IMPLEMENTATION_SYSTEM_PROMPT = `You are Morphic Web's principal front-end engineer. You receive a structured blueprint and guardrails from strategy. Your job is to construct a flawless, production-ready React 18 single-file experience that matches the blueprint and Morphic guardrails precisely. Favor Tailwind, Framer Motion, Lucide, Recharts, and other CDN-available packages; render AI responses elegantly using Markdown; keep everything secure, accessible, and polished.`;
+const IMPLEMENTATION_SYSTEM_PROMPT = `You are Morphic Web's React engineer. Build production-ready React 18 single-file apps from blueprints. Use ONLY CDN packages: React, Tailwind CSS, Framer Motion, Lucide, Recharts, Axios, Marked. Never reference npm packages. Render AI responses with Markdown. Keep code secure, accessible, complete.`;
 
-const ENHANCEMENT_SYSTEM_PROMPT = `You are Morphic Web's senior experience director. You are given the current React implementation, the original blueprint, and refinement goals. Evolve the code to feel even more premium, add thoughtful AI-powered touches, upgrade motion and theming, and ensure every interaction feels intentional. Produce a fully updated React file—no commentary.`;
 
 const BLUEPRINT_TEMPLATE = `APP IDEA: {APP_IDEA}
 
@@ -82,30 +81,11 @@ PROTECTED RULES:
 [[/PROTECTED_RULES]]
 
 DELIVERABLE:
-- Return a single React 18 component file.
-- Place all imports at top; use only CDN-available libraries listed in guardrails or blueprint assets.
-- Ensure AI behaviors call Groq via fetch with Bearer GROQ_API_KEY (provided globally).
-- Render any AI text using Markdown (marked or react-markdown) wrapped in elegant styled containers.
-- Implement sections and components exactly as described, with premium motion, glassmorphism, gradients, and responsive layouts.
-- Include fallback UI, loading states, and error handling for each AI action.
-- No TODOs, comments, or placeholders. Ship production-ready JSX only.`;
-
-const ENHANCEMENT_TEMPLATE = `CURRENT BLUEPRINT JSON:
-{BLUEPRINT_JSON}
-
-CURRENT IMPLEMENTATION:
-{CURRENT_CODE}
-
-PROTECTED RULES:
-[[PROTECTED_RULES]]
-{GUARDRAILS_JSON}
-[[/PROTECTED_RULES]]
-
-MISSION:
-- Upgrade the app to feel even more premium and intelligent without regressing functionality.
-- Tighten animations, reinforce theme words, add delightful micro-interactions, and expand AI behaviors where beneficial.
-- Address any success criteria not yet satisfied.
-- Return the full updated React file—no commentary.`;
+- Single React 18 component file with CDN imports only.
+- Use: React (https://unpkg.com/react@18), Tailwind (https://cdn.tailwindcss.com), Framer Motion (https://unpkg.com/framer-motion), Lucide (https://unpkg.com/lucide-react), Recharts (https://unpkg.com/recharts), Axios (https://unpkg.com/axios), Marked (https://unpkg.com/marked).
+- AI calls: fetch with Bearer GROQ_API_KEY (global). Render responses with Markdown in styled containers.
+- Premium UI: motion, glassmorphism, gradients, responsive. Include loading states, error handling.
+- Complete, balanced code with proper exports. No TODOs or comments.`;
 
 export const BLUEPRINT_PROMPTS = {
   system: BLUEPRINT_SYSTEM_PROMPT,
@@ -115,11 +95,6 @@ export const BLUEPRINT_PROMPTS = {
 export const IMPLEMENTATION_PROMPTS = {
   system: IMPLEMENTATION_SYSTEM_PROMPT,
   template: IMPLEMENTATION_TEMPLATE
-};
-
-export const ENHANCEMENT_PROMPTS = {
-  system: ENHANCEMENT_SYSTEM_PROMPT,
-  template: ENHANCEMENT_TEMPLATE
 };
 
 export function buildGuardrailRules(options = {}) {
@@ -171,10 +146,3 @@ export function buildImplementationPrompt(blueprint, context = {}) {
     .replace('{GUARDRAILS_JSON}', stringify(guardrails));
 }
 
-export function buildEnhancementPrompt(blueprint, currentCode, context = {}) {
-  const guardrails = buildGuardrailRules(context.guardrails || {});
-  return ENHANCEMENT_TEMPLATE
-    .replace('{BLUEPRINT_JSON}', stringify(blueprint))
-    .replace('{CURRENT_CODE}', currentCode)
-    .replace('{GUARDRAILS_JSON}', stringify(guardrails));
-}

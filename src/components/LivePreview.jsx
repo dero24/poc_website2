@@ -43,6 +43,51 @@ const LEGACY_BODY_STYLE = `body { margin: 0; padding: 0; font-family: -apple-sys
 const buildLegacyRuntimeScript = (code) => {
   const runtimeContent = `const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// Enhanced CDN package resolution
+window.require = function(packageName) {
+  const packageMap = {
+    'react': React,
+    'react-dom': ReactDOM,
+    'framer-motion': window.FramerMotion || { motion: (tag) => tag },
+    'lucide-react': window.LucideReact || {},
+    'recharts': window.Recharts || {},
+    'axios': window.axios || { get: () => Promise.resolve({ data: {} }), post: () => Promise.resolve({ data: {} }) },
+    'marked': window.marked || { parse: (text) => text }
+  };
+  
+  if (packageMap[packageName]) {
+    return packageMap[packageName];
+  }
+  
+  console.warn(\`Package '\${packageName}' not available in CDN preview. Using fallback.\`);
+  return {};
+};
+
+// Groq API key helper
+function getMorphicGroqKey() {
+  const readKey = (context) => {
+    if (!context) return '';
+    if (context.__MORPHIC_GROQ_KEY__) return context.__MORPHIC_GROQ_KEY__;
+    try {
+      if (context.localStorage) {
+        const stored = context.localStorage.getItem('groq-api-key');
+        if (stored) return stored;
+      }
+    } catch (err) {}
+    return '';
+  };
+  if (typeof window !== 'undefined') {
+    const direct = readKey(window);
+    if (direct) return direct;
+    if (window.parent && window.parent !== window) {
+      const parentKey = readKey(window.parent);
+      if (parentKey) return parentKey;
+    }
+  }
+  return '';
+}
+window.getMorphicGroqKey = getMorphicGroqKey;
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -106,10 +151,25 @@ const PREVIEW_BRIDGE_SCRIPT = createScriptTag({
 })();`
 });
 
+const CDN_PACKAGES = {
+  'react': 'https://unpkg.com/react@18/umd/react.development.js',
+  'react-dom': 'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
+  'framer-motion': 'https://unpkg.com/framer-motion@11/dist/framer-motion.js',
+  'lucide-react': 'https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js',
+  'recharts': 'https://unpkg.com/recharts@2.8.0/umd/Recharts.js',
+  'axios': 'https://unpkg.com/axios@1.5.0/dist/axios.min.js',
+  'marked': 'https://unpkg.com/marked@9.1.2/marked.min.js'
+};
+
 const DEFAULT_LIB_SCRIPTS = [
-  createScriptTag({ src: 'https://unpkg.com/react@18/umd/react.development.js', crossorigin: 'anonymous' }),
-  createScriptTag({ src: 'https://unpkg.com/react-dom@18/umd/react-dom.development.js', crossorigin: 'anonymous' }),
-  createScriptTag({ src: 'https://unpkg.com/@babel/standalone/babel.min.js', crossorigin: 'anonymous' })
+  createScriptTag({ src: CDN_PACKAGES.react, crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES['react-dom'], crossorigin: 'anonymous' }),
+  createScriptTag({ src: 'https://unpkg.com/@babel/standalone/babel.min.js', crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES['framer-motion'], crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES['lucide-react'], crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES.recharts, crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES.axios, crossorigin: 'anonymous' }),
+  createScriptTag({ src: CDN_PACKAGES.marked, crossorigin: 'anonymous' })
 ];
 
 const DEFAULT_STYLE_SCRIPT = createScriptTag({ src: 'https://cdn.tailwindcss.com' });

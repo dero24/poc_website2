@@ -122,7 +122,7 @@ function App() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
   const templateKey = 'base';
-  const [modelKey, setModelKey] = useState('groq/compound');
+  const [modelKey, setModelKey] = useState('llama-3.3-70b-versatile');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
   const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);
@@ -130,13 +130,12 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [agentRun, setAgentRun] = useState(null);
   const [versionHistory, setVersionHistory] = useState([]);
-  const [toolPreferences, setToolPreferences] = useState(groqService.getToolRegistry());
+  const [toolPreferences, setToolPreferences] = useState([]);
   
   // Multi-pass workflow state
   const [blueprint, setBlueprint] = useState(null);
   const [stageRuns, setStageRuns] = useState([]);
-  const [generationStage, setGenerationStage] = useState('idle'); // 'idle', 'blueprint', 'implementation', 'enhancement'
-  const [autoEnhance, setAutoEnhance] = useState(false);
+  const [generationStage, setGenerationStage] = useState('idle'); // 'idle', 'blueprint', 'implementation'
   const lastSavedBlueprintRef = useRef(null);
 
   const refreshHistory = useCallback(() => {
@@ -183,10 +182,6 @@ function App() {
     refreshHistory();
   }, [refreshHistory]);
 
-  const enabledTools = useMemo(
-    () => toolPreferences.filter((entry) => entry.enabled !== false),
-    [toolPreferences]
-  );
 
   useEffect(() => {
     if (!apiKey) {
@@ -212,16 +207,6 @@ function App() {
     };
   }, [apiKey]);
 
-  const handleToolToggle = useCallback((toolName) => {
-    setToolPreferences((current) =>
-      current.map((entry) =>
-        entry.name === toolName
-          ? { ...entry, enabled: entry.enabled === false ? true : !entry.enabled }
-          : entry
-      )
-    );
-  }, []);
-
   // Automatic multi-pass workflow handler
   const handleGenerate = useCallback(async () => {
     if (!apiKey) {
@@ -235,8 +220,8 @@ function App() {
     }
 
     const modelDefinition = modelOptions.find((model) => model.id === modelKey) || modelOptions[0];
-    if (!modelDefinition?.supportsTools && enabledTools.some((entry) => entry.enabled !== false)) {
-      setErrorMessage('Selected model does not support tools. Choose a different model or disable tools.');
+    if (!modelDefinition) {
+      setErrorMessage('No valid model selected.');
       return;
     }
 
@@ -258,7 +243,6 @@ function App() {
         appIdea,
         context,
         modelId: modelKey,
-        tools: enabledTools,
         requestParameters: { temperature: 0.2 }
       });
 
@@ -276,7 +260,6 @@ function App() {
         blueprint: newBlueprint,
         context,
         modelId: modelKey,
-        tools: enabledTools,
         requestParameters: { temperature: 0.3 }
       });
 
@@ -292,29 +275,6 @@ function App() {
       setStageRuns([...allStageRuns]);
       setAgentRun(serializedImplementationRun);
 
-      // Phase 3: Optional Enhancement
-      let finalCode = generatedCode;
-      if (autoEnhance && newBlueprint.needsEnhancement) {
-        setGenerationStage('enhancement');
-        const { run: enhancementRun } = await groqService.generateEnhancement({
-          blueprint: newBlueprint,
-          currentCode: generatedCode,
-          context,
-          modelId: modelKey,
-          tools: enabledTools,
-          requestParameters: { temperature: 0.25 }
-        });
-
-        const enhancedCode = groqService.extractCodeFromRun(enhancementRun);
-        if (enhancedCode && groqService.validateCode(enhancedCode)) {
-          finalCode = enhancedCode;
-          const serializedEnhancementRun = serializeRun(enhancementRun, groqService.extractPreviewManifest(enhancementRun));
-          allStageRuns.push({ stage: 'enhancement', run: serializedEnhancementRun, timestamp: Date.now() });
-          setStageRuns([...allStageRuns]);
-          setAgentRun(serializedEnhancementRun);
-        }
-      }
-
       // Create final app data
       const guardrailWarnings = Array.isArray(previewManifest?.warnings)
         ? previewManifest.warnings.slice(0, 20)
@@ -326,7 +286,7 @@ function App() {
         appIdea,
         model: modelKey,
         template: 'multi-pass',
-        code: finalCode,
+        code: generatedCode,
         prompt: `Multi-pass generation: ${appIdea}`,
         timestamp,
         isWorking: true,
@@ -363,15 +323,12 @@ function App() {
       setIsGenerating(false);
       setGenerationStage('idle');
     }
-  }, [apiKey, modelKey, modelOptions, toolPreferences, enabledTools, appIdea, includeAI, autoEnhance, refreshHistory]);
+  }, [apiKey, modelKey, modelOptions, appIdea, includeAI, refreshHistory]);
 
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
     setAgentRun(normalizeAgentRun(version.agentRun, version.previewManifest));
-    if (Array.isArray(version.toolPreferences) && version.toolPreferences.length) {
-      setToolPreferences(version.toolPreferences.map((entry) => ({ ...entry })));
-    }
     versionService.setCurrentApp(version);
     setActiveView('preview');
   }, []);

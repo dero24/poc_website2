@@ -2,31 +2,18 @@
 import {
   buildBlueprintPrompt,
   buildImplementationPrompt,
-  buildEnhancementPrompt,
   BLUEPRINT_PROMPTS,
-  IMPLEMENTATION_PROMPTS,
-  ENHANCEMENT_PROMPTS
+  IMPLEMENTATION_PROMPTS
 } from '../prompts/templates.js';
 
 const SUPPORTED_MODELS = [
-  { id: 'groq/compound', label: 'Groq Compound · MCP Agent', capabilities: ['agentic', 'tool-use', 'mcp'], supportsTools: true },
-  { id: 'groq/compound-mini', label: 'Groq Compound Mini · Fast MCP', capabilities: ['agentic', 'tool-use', 'mcp'], supportsTools: true },
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: true },
-  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B · Advanced', capabilities: ['agentic', 'tool-use'], supportsTools: true },
-  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B · Balanced', capabilities: ['agentic', 'tool-use'], supportsTools: true },
-  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B', capabilities: ['agentic'], supportsTools: true },
-  { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B', capabilities: ['agentic'], supportsTools: true },
-  { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2 · Creative', capabilities: ['agentic'], supportsTools: true },
-  { id: 'qwen/qwen3-32b', label: 'Qwen3 32B · Multilingual', capabilities: ['agentic'], supportsTools: true },
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false }
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
+  { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B · Efficient', capabilities: ['agentic'], supportsTools: false },
+  { id: 'gemma2-9b-it', label: 'Gemma 2 9B · Instruct', capabilities: ['agentic'], supportsTools: false }
 ];
 
-const DEFAULT_TOOL_REGISTRY = [
-  { name: 'web-search', type: 'groq-builtin', enabled: true },
-  { name: 'code-execution', type: 'groq-builtin', enabled: false },
-  { name: 'browser', type: 'groq-builtin', enabled: false },
-  { name: 'vision', type: 'groq-builtin', enabled: false }
-];
 
 const UNSAFE_PROTOCOLS = ['javascript:', 'data:', 'vbscript:'];
 
@@ -152,7 +139,6 @@ class GroqService {
     this.apiKey = null;
     this.baseUrl = 'https://api.groq.com/openai/v1';
     this.modelCache = SUPPORTED_MODELS;
-    this.toolRegistry = [...DEFAULT_TOOL_REGISTRY];
     this.lastRun = null;
   }
 
@@ -160,28 +146,20 @@ class GroqService {
     if (!id) return 'Unknown Model';
     
     // Handle special cases
-    if (id.includes('compound')) {
-      return id.includes('mini') ? 'Groq Compound Mini · Fast MCP' : 'Groq Compound · MCP Agent';
-    }
-    if (id.includes('gpt-oss')) {
-      const size = id.includes('120b') ? '120B · Advanced' : '20B · Balanced';
-      return `GPT-OSS ${size}`;
-    }
-    if (id.includes('llama-4')) {
-      const variant = id.includes('maverick') ? 'Maverick' : 'Scout';
-      return `Llama 4 ${variant} 17B`;
-    }
     if (id.includes('llama-3.3')) {
       return 'Llama 3.3 70B · Versatile';
     }
-    if (id.includes('llama-3.1')) {
+    if (id.includes('llama-3.1-70b')) {
+      return 'Llama 3.1 70B · Versatile';
+    }
+    if (id.includes('llama-3.1-8b')) {
       return 'Llama 3.1 8B · Instant';
     }
-    if (id.includes('kimi')) {
-      return 'Kimi K2 · Creative';
+    if (id.includes('mixtral-8x7b')) {
+      return 'Mixtral 8x7B · Efficient';
     }
-    if (id.includes('qwen3')) {
-      return 'Qwen3 32B · Multilingual';
+    if (id.includes('gemma2-9b')) {
+      return 'Gemma 2 9B · Instruct';
     }
     
     // Default formatting
@@ -200,15 +178,6 @@ class GroqService {
     return this.modelCache;
   }
 
-  getToolRegistry() {
-    return this.toolRegistry;
-  }
-
-  configureTools(registry) {
-    if (Array.isArray(registry) && registry.length) {
-      this.toolRegistry = registry.map((entry) => ({ ...entry }));
-    }
-  }
 
   async refreshModels() {
     if (!this.apiKey) {
@@ -274,15 +243,6 @@ class GroqService {
     return this.modelCache;
   }
 
-  resolveTools(preferredTools) {
-    const source = Array.isArray(preferredTools) && preferredTools.length ? preferredTools : this.toolRegistry;
-    return source
-      .filter(Boolean)
-      .map((entry) => ({
-        ...entry,
-        enabled: entry.enabled !== false
-      }));
-  }
 
   buildInputMessages({ systemPrompt, userPrompt, messages }) {
     const input = [];
@@ -523,7 +483,6 @@ class GroqService {
     userPrompt,
     messages = [],
     modelId,
-    tools,
     metadata = {},
     stream = false,
     responseFormat,
@@ -534,107 +493,21 @@ class GroqService {
     }
 
     const input = this.buildInputMessages({ systemPrompt, userPrompt, messages });
-    const payload = {
-      model: modelId || SUPPORTED_MODELS[0]?.id,
-      input,
-      tools: this.resolveTools(tools),
-      stream: Boolean(stream),
-      metadata,
-      ...requestParameters
-    };
-
-    if (responseFormat) {
-      payload.response_format = responseFormat;
-    }
-
-    const useResponsesApi = /compound/i.test(payload.model);
-    if (useResponsesApi) {
-      const responsesEndpoint = `${this.baseUrl}/responses`;
-      const normalizeTool = (tool) => {
-        if (!tool || tool.enabled === false) {
-          return null;
-        }
-
-        if (tool.type === 'groq-builtin' || tool.type === 'builtin' || tool.type === 'builtin-tool') {
-          return {
-            type: 'builtin',
-            name: tool.name
-          };
-        }
-
-        if (tool.type === 'mcp' || tool.type === 'mcp-tool') {
-          return {
-            type: 'mcp',
-            name: tool.name,
-            server: tool.server || tool.serverName || null,
-            tool_name: tool.toolName || tool.name,
-            arguments_schema: tool.arguments_schema || tool.argumentsSchema || null
-          };
-        }
-
-        if (tool.type === 'function' && tool.function) {
-          return {
-            type: 'function',
-            function: tool.function
-          };
-        }
-
-        return null;
-      };
-
-      const responsesTools = ensureArray(payload.tools)
-        .map(normalizeTool)
-        .filter(Boolean);
-
-      const responsesPayload = {
-        model: payload.model,
-        input: payload.input,
-        tools: responsesTools,
-        stream: false, // Disable streaming for now
-        metadata: payload.metadata,
-        ...requestParameters
-      };
-      if (responseFormat) {
-        responsesPayload.response_format = responseFormat;
-      }
-
-      const response = await fetch(responsesEndpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(responsesPayload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Groq Responses API error (${response.status}): ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      return this.normalizeAgentResponse(result);
-    }
-
     const endpoint = `${this.baseUrl}/chat/completions`;
 
     // Convert to standard OpenAI format
     const openaiPayload = {
-      model: payload.model,
-      messages: payload.input.map((msg) => ({
+      model: modelId || SUPPORTED_MODELS[0]?.id,
+      messages: input.map((msg) => ({
         role: msg.role,
         content: msg.content.map((c) => c.text).join('')
       })),
-      stream: payload.stream,
-      ...payload
+      stream: Boolean(stream),
+      ...requestParameters
     };
 
-    // Remove non-OpenAI fields
-    delete openaiPayload.input;
-    delete openaiPayload.tools;
-    delete openaiPayload.metadata;
-
-    if (payload.stream) {
-      return this.runAgenticWorkflowStream(endpoint, openaiPayload);
+    if (responseFormat) {
+      openaiPayload.response_format = responseFormat;
     }
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -653,7 +526,7 @@ class GroqService {
       } catch (parseError) {
         details = response.statusText;
       }
-      throw new Error(`Groq MCP error (${response.status}): ${details || 'Unexpected response'}`);
+      throw new Error(`Groq API error (${response.status}): ${details || 'Unexpected response'}`);
     }
 
     const data = await response.json();
@@ -957,7 +830,7 @@ class GroqService {
     return this.sanitizeBlueprint(parsed);
   }
 
-  async generateBlueprint({ appIdea, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
+  async generateBlueprint({ appIdea, context = {}, modelId = 'llama-3.3-70b-versatile', requestParameters = {} }) {
     if (!appIdea?.trim()) {
       throw new Error('App idea is required to generate a blueprint');
     }
@@ -967,7 +840,6 @@ class GroqService {
       systemPrompt: BLUEPRINT_PROMPTS.system,
       userPrompt: prompt,
       modelId,
-      tools,
       metadata: {
         stage: 'blueprint',
         appIdea,
@@ -987,7 +859,7 @@ class GroqService {
     return { run, blueprint };
   }
 
-  async generateImplementation({ blueprint, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
+  async generateImplementation({ blueprint, context = {}, modelId = 'llama-3.3-70b-versatile', requestParameters = {} }) {
     if (!blueprint) {
       throw new Error('Blueprint data is required before implementation');
     }
@@ -997,7 +869,6 @@ class GroqService {
       systemPrompt: IMPLEMENTATION_PROMPTS.system,
       userPrompt: prompt,
       modelId,
-      tools,
       metadata: {
         stage: 'implementation',
         summary: blueprint.summary || '',
@@ -1012,30 +883,6 @@ class GroqService {
     return { run };
   }
 
-  async generateEnhancement({ blueprint, currentCode, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
-    if (!currentCode) {
-      throw new Error('Current implementation code is required for enhancement');
-    }
-
-    const prompt = buildEnhancementPrompt(blueprint, currentCode, context);
-    const run = await this.runAgenticWorkflow({
-      systemPrompt: ENHANCEMENT_PROMPTS.system,
-      userPrompt: prompt,
-      modelId,
-      tools,
-      metadata: {
-        stage: 'enhancement',
-        summary: blueprint?.summary || '',
-        enhancement: true
-      },
-      requestParameters: {
-        temperature: 0.25,
-        ...requestParameters
-      }
-    });
-
-    return { run };
-  }
 
   async generateCode(prompt, model = SUPPORTED_MODELS[0]?.id) {
     if (!this.apiKey) {
@@ -1048,7 +895,6 @@ class GroqService {
       systemPrompt,
       userPrompt: prompt,
       modelId: model,
-      tools: [],
       requestParameters: {
         temperature: 0.3
       }
@@ -1056,7 +902,7 @@ class GroqService {
 
     const code = this.extractCodeFromRun(runResult);
     if (!code) {
-      throw new Error('No code generated from Groq MCP response');
+      throw new Error('No code generated from Groq response');
     }
 
     return code;

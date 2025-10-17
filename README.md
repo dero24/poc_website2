@@ -10,9 +10,9 @@ Transform natural language ideas into fully-working web applications in seconds 
 - **Preview Sandbox**: Generated code renders instantly inside an isolated iframe
 
 ### Groq-Powered AI
-- **Model Selection**: Choose from multiple Groq models (Llama, Mixtral, Gemma)
-- **Agentic & Legacy Modes**: Use Groq compound (MCP) models or fall back to chat-completions-compatible models
-- **Blueprint Services (In Progress)**: New `groqService.generateBlueprint()` / `generateImplementation()` / `generateEnhancement()` helpers prepare the upcoming multi-pass workflow
+- **Model Selection**: Choose from multiple Groq models (Llama 3.3 70B, Llama 3.1 70B/8B, Mixtral, Gemma)
+- **Multi-Pass Workflow**: Automatic blueprint → implementation flow for higher quality apps
+- **CDN-Only Architecture**: Generated apps use only browser-safe CDN packages for instant preview
 
 ### Advanced Capabilities
 - **Live Preview**: Instant browser preview of generated apps
@@ -33,7 +33,7 @@ Transform natural language ideas into fully-working web applications in seconds 
 - **Icons**: Lucide React
 - **AI Provider**: Groq API (exclusively)
 - **Storage**: Local Storage for versions and settings
-- **Agent Services**: `groqService.js` orchestrates both standard chat completions and Groq MCP Responses API calls
+- **Agent Services**: `groqService.js` orchestrates multi-pass blueprint and implementation generation
 
 ## 📦 Installation
 
