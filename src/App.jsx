@@ -222,15 +222,15 @@ function App() {
     );
   }, []);
 
-  // Multi-pass workflow handlers
-  const handleGenerateBlueprint = useCallback(async () => {
+  // Automatic multi-pass workflow handler
+  const handleGenerate = useCallback(async () => {
     if (!apiKey) {
       setShowApiModal(true);
       return;
     }
 
     if (!appIdea.trim()) {
-      setErrorMessage('Please describe your app idea before generating a blueprint.');
+      setErrorMessage('Please describe your app idea.');
       return;
     }
 
@@ -241,8 +241,8 @@ function App() {
     }
 
     setIsGenerating(true);
-    setGenerationStage('blueprint');
     setErrorMessage('');
+    const allStageRuns = [];
 
     try {
       const context = {
@@ -252,7 +252,9 @@ function App() {
         includeAI
       };
 
-      const { run, blueprint: newBlueprint } = await groqService.generateBlueprint({
+      // Phase 1: Generate Blueprint
+      setGenerationStage('blueprint');
+      const { run: blueprintRun, blueprint: newBlueprint } = await groqService.generateBlueprint({
         appIdea,
         context,
         modelId: modelKey,
@@ -263,14 +265,88 @@ function App() {
       setBlueprint(newBlueprint);
       lastSavedBlueprintRef.current = newBlueprint;
       
-      const serializedRun = serializeRun(run, null);
-      setStageRuns([{ stage: 'blueprint', run: serializedRun, timestamp: Date.now() }]);
-      setAgentRun(serializedRun);
-      setGenerationStage('idle');
+      const serializedBlueprintRun = serializeRun(blueprintRun, null);
+      allStageRuns.push({ stage: 'blueprint', run: serializedBlueprintRun, timestamp: Date.now() });
+      setStageRuns([...allStageRuns]);
+      setAgentRun(serializedBlueprintRun);
+
+      // Phase 2: Generate Implementation
+      setGenerationStage('implementation');
+      const { run: implementationRun } = await groqService.generateImplementation({
+        blueprint: newBlueprint,
+        context,
+        modelId: modelKey,
+        tools: enabledTools,
+        requestParameters: { temperature: 0.3 }
+      });
+
+      const generatedCode = groqService.extractCodeFromRun(implementationRun);
+      const previewManifest = groqService.extractPreviewManifest(implementationRun);
+
+      if (!generatedCode || !groqService.validateCode(generatedCode)) {
+        throw new Error('Generated code failed validation');
+      }
+
+      const serializedImplementationRun = serializeRun(implementationRun, previewManifest);
+      allStageRuns.push({ stage: 'implementation', run: serializedImplementationRun, timestamp: Date.now() });
+      setStageRuns([...allStageRuns]);
+      setAgentRun(serializedImplementationRun);
+
+      // Phase 3: Optional Enhancement
+      let finalCode = generatedCode;
+      if (autoEnhance && newBlueprint.needsEnhancement) {
+        setGenerationStage('enhancement');
+        const { run: enhancementRun } = await groqService.generateEnhancement({
+          blueprint: newBlueprint,
+          currentCode: generatedCode,
+          context,
+          modelId: modelKey,
+          tools: enabledTools,
+          requestParameters: { temperature: 0.25 }
+        });
+
+        const enhancedCode = groqService.extractCodeFromRun(enhancementRun);
+        if (enhancedCode && groqService.validateCode(enhancedCode)) {
+          finalCode = enhancedCode;
+          const serializedEnhancementRun = serializeRun(enhancementRun, groqService.extractPreviewManifest(enhancementRun));
+          allStageRuns.push({ stage: 'enhancement', run: serializedEnhancementRun, timestamp: Date.now() });
+          setStageRuns([...allStageRuns]);
+          setAgentRun(serializedEnhancementRun);
+        }
+      }
+
+      // Create final app data
+      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
+        ? previewManifest.warnings.slice(0, 20)
+        : [];
+
+      const timestamp = Date.now();
+      const appData = {
+        id: timestamp.toString(),
+        appIdea,
+        model: modelKey,
+        template: 'multi-pass',
+        code: finalCode,
+        prompt: `Multi-pass generation: ${appIdea}`,
+        timestamp,
+        isWorking: true,
+        agentRun: serializedImplementationRun,
+        toolPreferences,
+        metadata: implementationRun.metadata || null,
+        previewManifest: previewManifest || null,
+        guardrailWarnings,
+        blueprint: newBlueprint,
+        stageRuns: allStageRuns
+      };
+
+      setGeneratedApp(appData);
+      setActiveView('preview');
+      versionService.saveVersion(appData);
+      setTimeout(() => refreshHistory(), 0);
 
     } catch (error) {
-      console.error('Blueprint generation failed:', error);
-      const message = error?.message || 'Blueprint generation failed.';
+      console.error('Multi-pass generation failed:', error);
+      const message = error?.message || 'Generation failed.';
       setErrorMessage(message);
 
       const unauthorized = /401|api key|unauthorized/i.test(message);
@@ -287,158 +363,8 @@ function App() {
       setIsGenerating(false);
       setGenerationStage('idle');
     }
-  }, [apiKey, modelKey, modelOptions, toolPreferences, enabledTools, appIdea, includeAI]);
+  }, [apiKey, modelKey, modelOptions, toolPreferences, enabledTools, appIdea, includeAI, autoEnhance, refreshHistory]);
 
-  const handleGenerateImplementation = useCallback(async () => {
-    if (!blueprint) {
-      setErrorMessage('Generate a blueprint first before creating the implementation.');
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationStage('implementation');
-    setErrorMessage('');
-
-    try {
-      const context = {
-        guardrails: buildGuardrailRules(),
-        apiKey,
-        modelId: modelKey,
-        includeAI
-      };
-
-      const { run } = await groqService.generateImplementation({
-        blueprint,
-        context,
-        modelId: modelKey,
-        tools: enabledTools,
-        requestParameters: { temperature: 0.3 }
-      });
-
-      const generatedCode = groqService.extractCodeFromRun(run);
-      const previewManifest = groqService.extractPreviewManifest(run);
-
-      if (!generatedCode || !groqService.validateCode(generatedCode)) {
-        throw new Error('Generated code failed validation');
-      }
-
-      const serializedRun = serializeRun(run, previewManifest);
-      const newStageRuns = [...stageRuns, { stage: 'implementation', run: serializedRun, timestamp: Date.now() }];
-      setStageRuns(newStageRuns);
-      setAgentRun(serializedRun);
-
-      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
-        ? previewManifest.warnings.slice(0, 20)
-        : [];
-
-      const timestamp = Date.now();
-      const appData = {
-        id: timestamp.toString(),
-        appIdea,
-        model: modelKey,
-        template: templateKey,
-        code: generatedCode,
-        prompt: `Blueprint → Implementation for: ${appIdea}`,
-        timestamp,
-        isWorking: true,
-        agentRun: serializedRun,
-        toolPreferences,
-        metadata: run.metadata || null,
-        previewManifest: previewManifest || null,
-        guardrailWarnings,
-        blueprint,
-        stageRuns: newStageRuns
-      };
-
-      setGeneratedApp(appData);
-      setActiveView('preview');
-      versionService.saveVersion(appData);
-      setTimeout(() => refreshHistory(), 0);
-
-      // Auto-enhance if enabled
-      if (autoEnhance && blueprint.needsEnhancement) {
-        setTimeout(() => handleGenerateEnhancement(), 1000);
-      }
-
-    } catch (error) {
-      console.error('Implementation generation failed:', error);
-      const message = error?.message || 'Implementation generation failed.';
-      setErrorMessage(message);
-    } finally {
-      setIsGenerating(false);
-      setGenerationStage('idle');
-    }
-  }, [blueprint, apiKey, modelKey, enabledTools, appIdea, templateKey, toolPreferences, stageRuns, autoEnhance, refreshHistory]);
-
-  const handleGenerateEnhancement = useCallback(async () => {
-    if (!blueprint || !generatedApp?.code) {
-      setErrorMessage('Need both blueprint and implementation before enhancement.');
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationStage('enhancement');
-    setErrorMessage('');
-
-    try {
-      const context = {
-        guardrails: buildGuardrailRules(),
-        apiKey,
-        modelId: modelKey,
-        includeAI
-      };
-
-      const { run } = await groqService.generateEnhancement({
-        blueprint,
-        currentCode: generatedApp.code,
-        context,
-        modelId: modelKey,
-        tools: enabledTools,
-        requestParameters: { temperature: 0.25 }
-      });
-
-      const enhancedCode = groqService.extractCodeFromRun(run);
-      const previewManifest = groqService.extractPreviewManifest(run);
-
-      if (!enhancedCode || !groqService.validateCode(enhancedCode)) {
-        throw new Error('Enhanced code failed validation');
-      }
-
-      const serializedRun = serializeRun(run, previewManifest);
-      const newStageRuns = [...stageRuns, { stage: 'enhancement', run: serializedRun, timestamp: Date.now() }];
-      setStageRuns(newStageRuns);
-      setAgentRun(serializedRun);
-
-      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
-        ? previewManifest.warnings.slice(0, 20)
-        : [];
-
-      const updatedApp = {
-        ...generatedApp,
-        code: enhancedCode,
-        timestamp: Date.now(),
-        agentRun: serializedRun,
-        previewManifest: previewManifest || null,
-        guardrailWarnings,
-        stageRuns: newStageRuns
-      };
-
-      setGeneratedApp(updatedApp);
-      versionService.saveVersion(updatedApp);
-      setTimeout(() => refreshHistory(), 0);
-
-    } catch (error) {
-      console.error('Enhancement generation failed:', error);
-      const message = error?.message || 'Enhancement generation failed.';
-      setErrorMessage(message);
-    } finally {
-      setIsGenerating(false);
-      setGenerationStage('idle');
-    }
-  }, [blueprint, generatedApp, apiKey, modelKey, enabledTools, stageRuns, refreshHistory]);
-
-  // Legacy single-pass handler (fallback)
-  const handleGenerate = handleGenerateBlueprint;
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
@@ -551,9 +477,6 @@ function App() {
               generationStage={generationStage}
               autoEnhance={autoEnhance}
               onAutoEnhanceChange={setAutoEnhance}
-              onGenerateBlueprint={handleGenerateBlueprint}
-              onGenerateImplementation={handleGenerateImplementation}
-              onGenerateEnhancement={handleGenerateEnhancement}
               hasBlueprint={!!blueprint}
               hasImplementation={!!generatedApp}
             />

@@ -299,6 +299,20 @@ class GroqService {
     return input;
   }
 
+  normalizeAgentResponse(result) {
+    // Normalize responses API format to match expected structure
+    if (!result) return null;
+
+    return {
+      finalText: result.output || result.content || '',
+      reasoning: result.reasoning || [],
+      toolCalls: result.tool_calls || [],
+      metadata: result.metadata || {},
+      artifacts: result.artifacts || [],
+      messages: result.messages || []
+    };
+  }
+
   extractCodeFromRun(runResult) {
     if (!runResult) {
       return '';
@@ -535,11 +549,12 @@ class GroqService {
 
     const useResponsesApi = /compound/i.test(payload.model);
     if (useResponsesApi) {
+      const responsesEndpoint = `${this.baseUrl}/responses`;
       const responsesPayload = {
         model: payload.model,
         input: payload.input,
         tools: payload.tools,
-        stream: Boolean(payload.stream),
+        stream: false, // Disable streaming for now
         metadata: payload.metadata,
         ...requestParameters
       };
@@ -547,10 +562,21 @@ class GroqService {
         responsesPayload.response_format = responseFormat;
       }
 
-      if (responsesPayload.stream) {
-        return this.runResponsesWorkflowStream(responsesPayload);
+      const response = await fetch(responsesEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(responsesPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq Responses API error (${response.status}): ${response.statusText}`);
       }
-      return this.runResponsesWorkflow(responsesPayload);
+
+      const result = await response.json();
+      return this.normalizeAgentResponse(result);
     }
 
     const endpoint = `${this.baseUrl}/chat/completions`;
