@@ -48,11 +48,54 @@ window.require = function(packageName) {
   const packageMap = {
     'react': React,
     'react-dom': ReactDOM,
-    'framer-motion': window.FramerMotion || { motion: (tag) => tag },
-    'lucide-react': window.LucideReact || {},
-    'recharts': window.Recharts || {},
-    'axios': window.axios || { get: () => Promise.resolve({ data: {} }), post: () => Promise.resolve({ data: {} }) },
-    'marked': window.marked || { parse: (text) => text }
+    'framer-motion': window.FramerMotion || {
+      motion: React.forwardRef((props, ref) => {
+        const { children, ...motionProps } = props;
+        // Remove motion-specific props that might cause issues
+        const safeProps = { ...motionProps };
+        delete safeProps.initial;
+        delete safeProps.animate;
+        delete safeProps.exit;
+        delete safeProps.transition;
+        delete safeProps.variants;
+        delete safeProps.whileHover;
+        delete safeProps.whileTap;
+        return React.createElement(props.as || 'div', { ...safeProps, ref }, children);
+      })
+    },
+    'lucide-react': window.LucideReact || {
+      // Common icons as basic divs with emoji fallbacks
+      AiOutlineCloud: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '☁️'),
+      CheckCircle: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '✅'),
+      AlertTriangle: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚠️'),
+      RefreshCw: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '🔄'),
+      ExternalLink: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '🔗'),
+      Sparkles: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '✨'),
+      Code: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '💻'),
+      Play: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '▶️'),
+      History: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '📜'),
+      Settings: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚙️'),
+      Zap: (props) => React.createElement('div', { ...props, style: { fontSize: '24px', ...props.style } }, '⚡')
+    },
+    'recharts': window.Recharts || {
+      LineChart: (props) => React.createElement('div', { ...props, style: { padding: '20px', border: '1px solid #ccc', borderRadius: '8px', ...props.style } }, '📊 Chart Placeholder'),
+      Line: () => null,
+      XAxis: () => null,
+      YAxis: () => null,
+      CartesianGrid: () => null,
+      Tooltip: () => null,
+      ResponsiveContainer: (props) => React.createElement('div', props, props.children)
+    },
+    'axios': window.axios || { 
+      get: () => Promise.resolve({ data: {} }), 
+      post: () => Promise.resolve({ data: {} }),
+      put: () => Promise.resolve({ data: {} }),
+      delete: () => Promise.resolve({ data: {} })
+    },
+    'marked': window.marked || { 
+      parse: (text) => text,
+      parseInline: (text) => text
+    }
   };
   
   if (packageMap[packageName]) {

@@ -1,7 +1,9 @@
 
 const BLUEPRINT_SYSTEM_PROMPT = `You are Morphic Web's product strategist. Transform app ideas into detailed execution plans. Design layered experiences with AI behaviors, premium visuals, and thoughtful interactions using CDN-available packages only.`;
 
-const IMPLEMENTATION_SYSTEM_PROMPT = `You are Morphic Web's React engineer. Build production-ready React 18 single-file apps from blueprints. Use ONLY CDN packages: React, Tailwind CSS, Framer Motion, Lucide, Recharts, Axios, Marked. Never reference npm packages. Render AI responses with Markdown. Keep code secure, accessible, complete.`;
+const IMPLEMENTATION_SYSTEM_PROMPT = `You are Morphic Web's React engineer. Build production-ready React 18 single-file apps from blueprints. Use ONLY CDN packages: React, Tailwind CSS, Framer Motion, Lucide, Recharts, Axios, Marked. Never reference npm packages. Render AI responses with Markdown. Keep code secure, accessible, complete.
+
+CRITICAL: Output ONLY clean, executable React code. NEVER include thinking blocks, explanations, or commentary. NEVER use <think> tags or similar. The response must be pure React component code only.`;
 
 
 const BLUEPRINT_TEMPLATE = `APP IDEA: {APP_IDEA}
@@ -83,9 +85,10 @@ PROTECTED RULES:
 DELIVERABLE:
 - Single React 18 component file with CDN imports only.
 - Use: React (https://unpkg.com/react@18), Tailwind (https://cdn.tailwindcss.com), Framer Motion (https://unpkg.com/framer-motion), Lucide (https://unpkg.com/lucide-react), Recharts (https://unpkg.com/recharts), Axios (https://unpkg.com/axios), Marked (https://unpkg.com/marked).
-- AI calls: fetch with Bearer GROQ_API_KEY (global). Render responses with Markdown in styled containers.
+- AI calls: Use getMorphicGroqKey() function for API key access. NEVER use GROQ_API_KEY directly.
 - Premium UI: motion, glassmorphism, gradients, responsive. Include loading states, error handling.
-- Complete, balanced code with proper exports. No TODOs or comments.`;
+- Complete, balanced code with proper exports. No TODOs, comments, or thinking blocks.
+- OUTPUT ONLY THE CLEAN REACT CODE. No explanations, no thinking content, no markdown formatting.`;
 
 export const BLUEPRINT_PROMPTS = {
   system: BLUEPRINT_SYSTEM_PROMPT,

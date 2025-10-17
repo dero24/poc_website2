@@ -305,6 +305,16 @@ class GroqService {
 
     const targetModel = runResult?.metadata?.model || runResult?.metadata?.requestedModel || runResult?.metadata?.modelId || null;
 
+    // Filter out thinking blocks from the final text
+    let finalText = runResult.finalText || '';
+    if (typeof finalText === 'string') {
+      // Remove thinking blocks that start with <think> and end with </think>
+      finalText = finalText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // Also remove any remaining thinking content that might not be properly tagged
+      finalText = finalText.replace(/^[\s\S]*?(?=function\s+\w+|const\s+\w+\s*=|export\s+default|^\s*$)/m, '').trim();
+    }
+    runResult.finalText = finalText;
+
     const fromArtifacts = ensureArray(runResult.artifacts).find((artifact) => {
       if (!artifact) return false;
       if (!artifact.mimeType) return false;

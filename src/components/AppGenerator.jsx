@@ -22,14 +22,9 @@ const AppGenerator = ({
   onGenerate,
   errorMessage,
   onUseExample,
-  toolPreferences = [],
-  onToolToggle,
-  toolDefinitions = {},
   // Multi-pass props
   blueprint = null,
   generationStage = 'idle',
-  autoEnhance = false,
-  onAutoEnhanceChange,
   hasBlueprint = false,
   hasImplementation = false
 }) => {
@@ -67,7 +62,7 @@ const AppGenerator = ({
         </div>
 
         {/* Configuration */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-6 mb-8">
           <div>
             <label className="block text-sm font-medium text-white mb-3">
               Groq Model
@@ -84,38 +79,6 @@ const AppGenerator = ({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-300 space-y-3">
-            <p className="font-semibold text-white">Agent tools</p>
-            <p>
-              Enable the Groq MCP tools Morphic Web can use during this run. The agent will only call tools that are switched on.
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              {toolPreferences.map((tool) => {
-                const definition = toolDefinitions?.[tool.name] || {};
-                return (
-                  <label
-                    key={tool.name}
-                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/40 px-4 py-3 hover:border-white/20 transition-all"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={tool.enabled !== false}
-                      onChange={() => onToolToggle?.(tool.name)}
-                      disabled={isGenerating}
-                      className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-iris focus:ring-iris"
-                    />
-                    <div className="space-y-1">
-                      <p className="text-white text-sm font-medium capitalize">{definition.title || tool.name}</p>
-                      <p className="text-xs text-white/60">
-                        {definition.description || 'Tool description unavailable.'}
-                      </p>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
           </div>
         </div>
 
@@ -134,7 +97,6 @@ const AppGenerator = ({
               <h3 className="text-lg font-semibold text-blue-200">
                 {generationStage === 'blueprint' && 'Creating Blueprint...'}
                 {generationStage === 'implementation' && 'Building Implementation...'}
-                {generationStage === 'enhancement' && 'Adding Enhancements...'}
               </h3>
             </div>
             
@@ -144,13 +106,6 @@ const AppGenerator = ({
               <ArrowRight className="w-4 h-4 text-blue-300" />
               <div className={`w-3 h-3 rounded-full ${generationStage === 'implementation' ? 'bg-green-500 animate-pulse' : generationStage === 'blueprint' ? 'bg-gray-500' : 'bg-green-500'}`}></div>
               <span className="text-sm text-blue-200">Implementation</span>
-              {autoEnhance && (
-                <>
-                  <ArrowRight className="w-4 h-4 text-blue-300" />
-                  <div className={`w-3 h-3 rounded-full ${generationStage === 'enhancement' ? 'bg-purple-500 animate-pulse' : generationStage === 'enhancement' ? 'bg-purple-500' : 'bg-gray-500'}`}></div>
-                  <span className="text-sm text-blue-200">Enhancement</span>
-                </>
-              )}
             </div>
           </div>
         )}
@@ -200,19 +155,6 @@ const AppGenerator = ({
             )}
           </div>
         )}
-
-        {/* Auto-enhance Setting */}
-        <div className="mb-6 flex items-center justify-center">
-          <label className="flex items-center space-x-3 text-white/80">
-            <input
-              type="checkbox"
-              checked={autoEnhance}
-              onChange={(e) => onAutoEnhanceChange?.(e.target.checked)}
-              className="w-4 h-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
-            />
-            <span className="text-sm">Auto-enhance for premium polish</span>
-          </label>
-        </div>
 
         {/* Single Generate Button */}
         <button
