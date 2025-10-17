@@ -122,7 +122,7 @@ function App() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
   const templateKey = 'base';
-  const [modelKey, setModelKey] = useState('llama-3.3-70b-versatile');
+  const [modelKey, setModelKey] = useState('groq/compound');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
   const includeAI = true;
   const [isGenerating, setIsGenerating] = useState(false);

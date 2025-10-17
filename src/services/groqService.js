@@ -7,9 +7,17 @@ import {
 } from '../prompts/templates.js';
 
 const SUPPORTED_MODELS = [
+  { id: 'groq/compound', label: 'Groq Compound · Advanced Agent', capabilities: ['agentic'], supportsTools: false },
+  { id: 'groq/compound-mini', label: 'Groq Compound Mini · Fast Agent', capabilities: ['agentic'], supportsTools: false },
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
   { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B · Instant', capabilities: ['fast-draft'], supportsTools: false },
+  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B · Advanced', capabilities: ['agentic'], supportsTools: false },
+  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B · Balanced', capabilities: ['agentic'], supportsTools: false },
+  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B', capabilities: ['agentic'], supportsTools: false },
+  { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B', capabilities: ['agentic'], supportsTools: false },
+  { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2 · Creative', capabilities: ['agentic'], supportsTools: false },
+  { id: 'qwen/qwen3-32b', label: 'Qwen3 32B · Multilingual', capabilities: ['agentic'], supportsTools: false },
   { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B · Efficient', capabilities: ['agentic'], supportsTools: false },
   { id: 'gemma2-9b-it', label: 'Gemma 2 9B · Instruct', capabilities: ['agentic'], supportsTools: false }
 ];
@@ -144,8 +152,19 @@ class GroqService {
 
   formatModelDisplayName(id = '') {
     if (!id) return 'Unknown Model';
-    
+
     // Handle special cases
+    if (id.includes('compound')) {
+      return id.includes('mini') ? 'Groq Compound Mini · Fast Agent' : 'Groq Compound · Advanced Agent';
+    }
+    if (id.includes('gpt-oss')) {
+      const size = id.includes('120b') ? '120B · Advanced' : '20B · Balanced';
+      return `GPT-OSS ${size}`;
+    }
+    if (id.includes('llama-4')) {
+      const variant = id.includes('maverick') ? 'Maverick' : 'Scout';
+      return `Llama 4 ${variant} 17B`;
+    }
     if (id.includes('llama-3.3')) {
       return 'Llama 3.3 70B · Versatile';
     }
@@ -155,13 +174,19 @@ class GroqService {
     if (id.includes('llama-3.1-8b')) {
       return 'Llama 3.1 8B · Instant';
     }
+    if (id.includes('kimi')) {
+      return 'Kimi K2 · Creative';
+    }
+    if (id.includes('qwen3')) {
+      return 'Qwen3 32B · Multilingual';
+    }
     if (id.includes('mixtral-8x7b')) {
       return 'Mixtral 8x7B · Efficient';
     }
     if (id.includes('gemma2-9b')) {
       return 'Gemma 2 9B · Instruct';
     }
-    
+
     // Default formatting
     return formatModelLabel(id);
   }
@@ -830,7 +855,7 @@ class GroqService {
     return this.sanitizeBlueprint(parsed);
   }
 
-  async generateBlueprint({ appIdea, context = {}, modelId = 'llama-3.3-70b-versatile', requestParameters = {} }) {
+  async generateBlueprint({ appIdea, context = {}, modelId = 'groq/compound', requestParameters = {} }) {
     if (!appIdea?.trim()) {
       throw new Error('App idea is required to generate a blueprint');
     }
@@ -859,7 +884,7 @@ class GroqService {
     return { run, blueprint };
   }
 
-  async generateImplementation({ blueprint, context = {}, modelId = 'llama-3.3-70b-versatile', requestParameters = {} }) {
+  async generateImplementation({ blueprint, context = {}, modelId = 'groq/compound', requestParameters = {} }) {
     if (!blueprint) {
       throw new Error('Blueprint data is required before implementation');
     }

@@ -10,7 +10,7 @@ Transform natural language ideas into fully-working web applications in seconds 
 - **Preview Sandbox**: Generated code renders instantly inside an isolated iframe
 
 ### Groq-Powered AI
-- **Model Selection**: Choose from multiple Groq models (Llama 3.3 70B, Llama 3.1 70B/8B, Mixtral, Gemma)
+- **Model Selection**: Choose from multiple Groq models (Compound, Compound Mini, Llama 3.3/3.1, GPT-OSS, Llama 4, Kimi K2, Qwen3, Mixtral, Gemma)
 - **Multi-Pass Workflow**: Automatic blueprint → implementation flow for higher quality apps
 - **CDN-Only Architecture**: Generated apps use only browser-safe CDN packages for instant preview
 
