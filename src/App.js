@@ -108,7 +108,6 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedApp, setGeneratedApp] = useState(null);
   const [versions, setVersions] = useState([]);
-  const [toolPreferences, setToolPreferences] = useState([]);
   const [agentRun, setAgentRun] = useState(null);
 
   const refreshHistory = useCallback(() => {
@@ -132,9 +131,6 @@ function App() {
     if (currentApp) {
       setGeneratedApp(currentApp);
       setAgentRun(normalizeAgentRun(currentApp.agentRun, currentApp.previewManifest));
-      if (Array.isArray(currentApp.toolPreferences) && currentApp.toolPreferences.length) {
-        setToolPreferences(currentApp.toolPreferences.map((entry) => ({ ...entry })));
-      }
       setActiveView('preview');
     } else {
       setGeneratedApp(null);
@@ -211,12 +207,9 @@ function App() {
         systemPrompt: AGENT_SYSTEM_PROMPT,
         userPrompt: prompt,
         modelId: modelKey,
-        tools: toolPreferences,
         metadata: {
           template: templateKey,
-          appIdea,
-          modelId: modelKey,
-          enabledTools: enabledTools.map((tool) => tool.name)
+          appIdea
         },
         requestParameters: {
           temperature: 0.35
@@ -248,7 +241,6 @@ function App() {
         timestamp,
         isWorking: true,
         agentRun: serializedRun,
-        toolPreferences,
         metadata: runResult.metadata || null,
         previewManifest: previewManifest || null,
         guardrailWarnings
@@ -277,14 +269,11 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [appIdea, apiKey, modelKey, toolPreferences, enabledTools, refreshHistory]);
+  }, [appIdea, apiKey, modelKey, refreshHistory]);
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
     setAgentRun(normalizeAgentRun(version.agentRun, version.previewManifest));
-    if (Array.isArray(version.toolPreferences) && version.toolPreferences.length) {
-      setToolPreferences(version.toolPreferences.map((entry) => ({ ...entry })));
-    }
     versionService.setCurrentApp(version);
     setActiveView('preview');
   }, []);
@@ -323,10 +312,7 @@ function App() {
               isGenerating,
               onGenerate: handleGenerate,
               errorMessage,
-              onUseExample: setAppIdea,
-              toolPreferences,
-              onToolToggle: handleToolToggle,
-              toolDefinitions: TOOL_DEFINITIONS
+              onUseExample: setAppIdea
             }),
             h(AgentTimeline, {
               run: agentRun,

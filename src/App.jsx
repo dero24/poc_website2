@@ -20,24 +20,6 @@ const EXAMPLE_IDEAS = [
   'Habit tracker with celebratory streak animations'
 ];
 
-const TOOL_DEFINITIONS = {
-  'web-search': {
-    title: 'Web search',
-    description: 'Fetches trusted live sources to ground responses with current information.'
-  },
-  'code-execution': {
-    title: 'Code execution',
-    description: 'Runs snippets to validate logic, generate data, and debug generated code.'
-  },
-  browser: {
-    title: 'Browser automation',
-    description: 'Simulates navigation and scraping for richer context when building apps.'
-  },
-  vision: {
-    title: 'Vision analysis',
-    description: 'Interprets images/screenshots to influence UI and content decisions.'
-  }
-};
 
 const AGENT_SYSTEM_PROMPT = `You are Morphic Web's Groq compound agent. Build awe-inspiring, pixel-perfect React 18 single-file applications that obey Morphic guardrails and wow end users.
 
@@ -130,7 +112,6 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [agentRun, setAgentRun] = useState(null);
   const [versionHistory, setVersionHistory] = useState([]);
-  const [toolPreferences, setToolPreferences] = useState([]);
   
   // Multi-pass workflow state
   const [blueprint, setBlueprint] = useState(null);
@@ -159,9 +140,6 @@ function App() {
     if (currentApp) {
       setGeneratedApp(currentApp);
       setAgentRun(normalizeAgentRun(currentApp.agentRun, currentApp.previewManifest));
-      if (Array.isArray(currentApp.toolPreferences) && currentApp.toolPreferences.length) {
-        setToolPreferences(currentApp.toolPreferences.map((entry) => ({ ...entry })));
-      }
       // Restore multi-pass state
       if (currentApp.blueprint) {
         setBlueprint(currentApp.blueprint);
@@ -291,7 +269,6 @@ function App() {
         timestamp,
         isWorking: true,
         agentRun: serializedImplementationRun,
-        toolPreferences,
         metadata: implementationRun.metadata || null,
         previewManifest: previewManifest || null,
         guardrailWarnings,
@@ -426,14 +403,9 @@ function App() {
               onGenerate={handleGenerate}
               errorMessage={errorMessage}
               onUseExample={setAppIdea}
-              toolPreferences={toolPreferences}
-              onToolToggle={handleToolToggle}
-              toolDefinitions={TOOL_DEFINITIONS}
               // Multi-pass props
               blueprint={blueprint}
               generationStage={generationStage}
-              autoEnhance={autoEnhance}
-              onAutoEnhanceChange={setAutoEnhance}
               hasBlueprint={!!blueprint}
               hasImplementation={!!generatedApp}
             />
