@@ -764,10 +764,20 @@ class GroqService {
     const tryParse = (value) => {
       if (!value) return null;
       if (typeof value === 'string') {
-        const trimmed = value.trim();
+        let trimmed = value.trim();
         if (!trimmed) return null;
+
+        // Remove common code fences like ```json ... ```
+        if (/^```/m.test(trimmed)) {
+          trimmed = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+        }
+
+        // Attempt to locate first JSON object within the string if direct parse fails
+        const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+        const candidate = jsonMatch ? jsonMatch[0] : trimmed;
+
         try {
-          return JSON.parse(trimmed);
+          return JSON.parse(candidate);
         } catch (error) {
           return null;
         }
@@ -814,7 +824,25 @@ class GroqService {
     return null;
   }
 
-  sanitizeBlueprint(blueprint) {
+  sanitizeBlueprint(rawBlueprint) {
+    if (!rawBlueprint || typeof rawBlueprint !== 'object') {
+      return null;
+    }
+
+    // Some responses wrap the blueprint inside another object (e.g., { blueprint: {...} })
+    const blueprint = (() => {
+      if (rawBlueprint.blueprint && typeof rawBlueprint.blueprint === 'object') {
+        return rawBlueprint.blueprint;
+      }
+      if (rawBlueprint.data && typeof rawBlueprint.data === 'object' && rawBlueprint.data.blueprint) {
+        return rawBlueprint.data.blueprint;
+      }
+      if (rawBlueprint.plan && typeof rawBlueprint.plan === 'object') {
+        return rawBlueprint.plan;
+      }
+      return rawBlueprint;
+    })();
+
     if (!blueprint || typeof blueprint !== 'object') {
       return null;
     }
