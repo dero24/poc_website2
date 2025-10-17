@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sparkles, Code, Play, History, Settings, Zap } from 'lucide-react';
 import AppGenerator from './components/AppGenerator';
 import CodeViewer from './components/CodeViewer';
@@ -8,10 +8,7 @@ import ApiKeyModal from './components/ApiKeyModal';
 import AgentTimeline from './components/AgentTimeline';
 import groqService from './services/groqService';
 import versionService from './services/versionService';
-import {
-  PROMPT_TEMPLATES,
-  buildPrompt
-} from './prompts/templates';
+import { buildGuardrailRules } from './prompts/templates';
 import { APP_VERSION } from './version';
 
 const EXAMPLE_IDEAS = [
@@ -134,6 +131,13 @@ function App() {
   const [agentRun, setAgentRun] = useState(null);
   const [versionHistory, setVersionHistory] = useState([]);
   const [toolPreferences, setToolPreferences] = useState(groqService.getToolRegistry());
+  
+  // Multi-pass workflow state
+  const [blueprint, setBlueprint] = useState(null);
+  const [stageRuns, setStageRuns] = useState([]);
+  const [generationStage, setGenerationStage] = useState('idle'); // 'idle', 'blueprint', 'implementation', 'enhancement'
+  const [autoEnhance, setAutoEnhance] = useState(false);
+  const lastSavedBlueprintRef = useRef(null);
 
   const refreshHistory = useCallback(() => {
     const history = versionService.getAllVersions();
@@ -159,10 +163,21 @@ function App() {
       if (Array.isArray(currentApp.toolPreferences) && currentApp.toolPreferences.length) {
         setToolPreferences(currentApp.toolPreferences.map((entry) => ({ ...entry })));
       }
+      // Restore multi-pass state
+      if (currentApp.blueprint) {
+        setBlueprint(currentApp.blueprint);
+        lastSavedBlueprintRef.current = currentApp.blueprint;
+      }
+      if (Array.isArray(currentApp.stageRuns)) {
+        setStageRuns(currentApp.stageRuns);
+      }
       setActiveView('preview');
     } else {
       setGeneratedApp(null);
       setAgentRun(null);
+      setBlueprint(null);
+      setStageRuns([]);
+      setGenerationStage('idle');
     }
 
     refreshHistory();
@@ -207,9 +222,15 @@ function App() {
     );
   }, []);
 
-  const handleGenerate = useCallback(async () => {
+  // Multi-pass workflow handlers
+  const handleGenerateBlueprint = useCallback(async () => {
     if (!apiKey) {
       setShowApiModal(true);
+      return;
+    }
+
+    if (!appIdea.trim()) {
+      setErrorMessage('Please describe your app idea before generating a blueprint.');
       return;
     }
 
@@ -219,70 +240,37 @@ function App() {
       return;
     }
 
-    const prompt = buildPrompt(PROMPT_TEMPLATES[templateKey].template, appIdea, {
-      apiKey,
-      modelId: modelKey,
-      includeAI
-    });
-
     setIsGenerating(true);
+    setGenerationStage('blueprint');
     setErrorMessage('');
 
     try {
-      const runResult = await groqService.runAgenticWorkflow({
-        systemPrompt: AGENT_SYSTEM_PROMPT,
-        userPrompt: prompt,
+      const context = {
+        guardrails: buildGuardrailRules(),
+        apiKey,
         modelId: modelKey,
-        tools: toolPreferences,
-        metadata: {
-          template: templateKey,
-          appIdea,
-          modelId: modelKey,
-          enabledTools: enabledTools.map((tool) => tool.name)
-        },
-        requestParameters: {
-          temperature: 0.35
-        }
-      });
-
-      const generatedCode = groqService.extractCodeFromRun(runResult);
-      const previewManifest = groqService.extractPreviewManifest(runResult);
-
-      if (!generatedCode || !groqService.validateCode(generatedCode)) {
-        throw new Error('Generated code failed validation');
-      }
-
-      const serializedRun = serializeRun(runResult, previewManifest);
-      setAgentRun(serializedRun);
-
-      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
-        ? previewManifest.warnings.slice(0, 20)
-        : [];
-
-      const timestamp = Date.now();
-      const appData = {
-        id: timestamp.toString(),
-        appIdea,
-        model: modelKey,
-        template: templateKey,
-        code: generatedCode,
-        prompt,
-        timestamp,
-        isWorking: true,
-        agentRun: serializedRun,
-        toolPreferences,
-        metadata: runResult.metadata || null,
-        previewManifest: previewManifest || null,
-        guardrailWarnings
+        includeAI
       };
 
-      setGeneratedApp(appData);
-      setActiveView('preview');
-      versionService.saveVersion(appData);
-      setTimeout(() => refreshHistory(), 0);
+      const { run, blueprint: newBlueprint } = await groqService.generateBlueprint({
+        appIdea,
+        context,
+        modelId: modelKey,
+        tools: enabledTools,
+        requestParameters: { temperature: 0.2 }
+      });
+
+      setBlueprint(newBlueprint);
+      lastSavedBlueprintRef.current = newBlueprint;
+      
+      const serializedRun = serializeRun(run, null);
+      setStageRuns([{ stage: 'blueprint', run: serializedRun, timestamp: Date.now() }]);
+      setAgentRun(serializedRun);
+      setGenerationStage('idle');
+
     } catch (error) {
-      console.error(error);
-      const message = error?.message || 'Generation failed.';
+      console.error('Blueprint generation failed:', error);
+      const message = error?.message || 'Blueprint generation failed.';
       setErrorMessage(message);
 
       const unauthorized = /401|api key|unauthorized/i.test(message);
@@ -297,8 +285,160 @@ function App() {
       }
     } finally {
       setIsGenerating(false);
+      setGenerationStage('idle');
     }
-  }, [apiKey, modelKey, modelOptions, toolPreferences, enabledTools, appIdea, includeAI, templateKey, refreshHistory]);
+  }, [apiKey, modelKey, modelOptions, toolPreferences, enabledTools, appIdea, includeAI]);
+
+  const handleGenerateImplementation = useCallback(async () => {
+    if (!blueprint) {
+      setErrorMessage('Generate a blueprint first before creating the implementation.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationStage('implementation');
+    setErrorMessage('');
+
+    try {
+      const context = {
+        guardrails: buildGuardrailRules(),
+        apiKey,
+        modelId: modelKey,
+        includeAI
+      };
+
+      const { run } = await groqService.generateImplementation({
+        blueprint,
+        context,
+        modelId: modelKey,
+        tools: enabledTools,
+        requestParameters: { temperature: 0.3 }
+      });
+
+      const generatedCode = groqService.extractCodeFromRun(run);
+      const previewManifest = groqService.extractPreviewManifest(run);
+
+      if (!generatedCode || !groqService.validateCode(generatedCode)) {
+        throw new Error('Generated code failed validation');
+      }
+
+      const serializedRun = serializeRun(run, previewManifest);
+      const newStageRuns = [...stageRuns, { stage: 'implementation', run: serializedRun, timestamp: Date.now() }];
+      setStageRuns(newStageRuns);
+      setAgentRun(serializedRun);
+
+      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
+        ? previewManifest.warnings.slice(0, 20)
+        : [];
+
+      const timestamp = Date.now();
+      const appData = {
+        id: timestamp.toString(),
+        appIdea,
+        model: modelKey,
+        template: templateKey,
+        code: generatedCode,
+        prompt: `Blueprint → Implementation for: ${appIdea}`,
+        timestamp,
+        isWorking: true,
+        agentRun: serializedRun,
+        toolPreferences,
+        metadata: run.metadata || null,
+        previewManifest: previewManifest || null,
+        guardrailWarnings,
+        blueprint,
+        stageRuns: newStageRuns
+      };
+
+      setGeneratedApp(appData);
+      setActiveView('preview');
+      versionService.saveVersion(appData);
+      setTimeout(() => refreshHistory(), 0);
+
+      // Auto-enhance if enabled
+      if (autoEnhance && blueprint.needsEnhancement) {
+        setTimeout(() => handleGenerateEnhancement(), 1000);
+      }
+
+    } catch (error) {
+      console.error('Implementation generation failed:', error);
+      const message = error?.message || 'Implementation generation failed.';
+      setErrorMessage(message);
+    } finally {
+      setIsGenerating(false);
+      setGenerationStage('idle');
+    }
+  }, [blueprint, apiKey, modelKey, enabledTools, appIdea, templateKey, toolPreferences, stageRuns, autoEnhance, refreshHistory]);
+
+  const handleGenerateEnhancement = useCallback(async () => {
+    if (!blueprint || !generatedApp?.code) {
+      setErrorMessage('Need both blueprint and implementation before enhancement.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationStage('enhancement');
+    setErrorMessage('');
+
+    try {
+      const context = {
+        guardrails: buildGuardrailRules(),
+        apiKey,
+        modelId: modelKey,
+        includeAI
+      };
+
+      const { run } = await groqService.generateEnhancement({
+        blueprint,
+        currentCode: generatedApp.code,
+        context,
+        modelId: modelKey,
+        tools: enabledTools,
+        requestParameters: { temperature: 0.25 }
+      });
+
+      const enhancedCode = groqService.extractCodeFromRun(run);
+      const previewManifest = groqService.extractPreviewManifest(run);
+
+      if (!enhancedCode || !groqService.validateCode(enhancedCode)) {
+        throw new Error('Enhanced code failed validation');
+      }
+
+      const serializedRun = serializeRun(run, previewManifest);
+      const newStageRuns = [...stageRuns, { stage: 'enhancement', run: serializedRun, timestamp: Date.now() }];
+      setStageRuns(newStageRuns);
+      setAgentRun(serializedRun);
+
+      const guardrailWarnings = Array.isArray(previewManifest?.warnings)
+        ? previewManifest.warnings.slice(0, 20)
+        : [];
+
+      const updatedApp = {
+        ...generatedApp,
+        code: enhancedCode,
+        timestamp: Date.now(),
+        agentRun: serializedRun,
+        previewManifest: previewManifest || null,
+        guardrailWarnings,
+        stageRuns: newStageRuns
+      };
+
+      setGeneratedApp(updatedApp);
+      versionService.saveVersion(updatedApp);
+      setTimeout(() => refreshHistory(), 0);
+
+    } catch (error) {
+      console.error('Enhancement generation failed:', error);
+      const message = error?.message || 'Enhancement generation failed.';
+      setErrorMessage(message);
+    } finally {
+      setIsGenerating(false);
+      setGenerationStage('idle');
+    }
+  }, [blueprint, generatedApp, apiKey, modelKey, enabledTools, stageRuns, refreshHistory]);
+
+  // Legacy single-pass handler (fallback)
+  const handleGenerate = handleGenerateBlueprint;
 
   const handleVersionSelect = useCallback((version) => {
     setGeneratedApp(version);
@@ -406,11 +546,23 @@ function App() {
               toolPreferences={toolPreferences}
               onToolToggle={handleToolToggle}
               toolDefinitions={TOOL_DEFINITIONS}
+              // Multi-pass props
+              blueprint={blueprint}
+              generationStage={generationStage}
+              autoEnhance={autoEnhance}
+              onAutoEnhanceChange={setAutoEnhance}
+              onGenerateBlueprint={handleGenerateBlueprint}
+              onGenerateImplementation={handleGenerateImplementation}
+              onGenerateEnhancement={handleGenerateEnhancement}
+              hasBlueprint={!!blueprint}
+              hasImplementation={!!generatedApp}
             />
             <AgentTimeline
               run={agentRun}
               isGenerating={isGenerating}
               guardrailWarnings={generatedApp?.guardrailWarnings || []}
+              blueprint={blueprint}
+              stageRuns={stageRuns}
             />
           </>
         ) : null}
@@ -422,6 +574,8 @@ function App() {
               run={agentRun}
               isGenerating={isGenerating}
               guardrailWarnings={generatedApp?.guardrailWarnings || []}
+              blueprint={blueprint}
+              stageRuns={stageRuns}
             />
           </>
         ) : null}
@@ -433,6 +587,8 @@ function App() {
               run={agentRun}
               isGenerating={isGenerating}
               guardrailWarnings={generatedApp?.guardrailWarnings || []}
+              blueprint={blueprint}
+              stageRuns={stageRuns}
             />
           </>
         ) : null}

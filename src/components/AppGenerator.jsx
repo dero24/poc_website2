@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Wand2, Zap } from 'lucide-react';
+import { Sparkles, Wand2, Zap, CheckCircle, ArrowRight, Settings } from 'lucide-react';
 
 const EXAMPLE_IDEAS = [
   'AI-powered todo list with smart categorization',
@@ -24,7 +24,17 @@ const AppGenerator = ({
   onUseExample,
   toolPreferences = [],
   onToolToggle,
-  toolDefinitions = {}
+  toolDefinitions = {},
+  // Multi-pass props
+  blueprint = null,
+  generationStage = 'idle',
+  autoEnhance = false,
+  onAutoEnhanceChange,
+  onGenerateBlueprint,
+  onGenerateImplementation,
+  onGenerateEnhancement,
+  hasBlueprint = false,
+  hasImplementation = false
 }) => {
   const displayedModels = Array.isArray(modelOptions) && modelOptions.length
     ? modelOptions
@@ -119,20 +129,125 @@ const AppGenerator = ({
           </div>
         )}
 
-        {/* Generate Button */}
-        <button
-          onClick={() => onGenerate?.()}
-          disabled={isGenerating || !appIdea.trim()}
-          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold py-4 px-8 rounded-lg transition-all transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed"
-        >
-          <div className="flex items-center justify-center space-x-3">
-            <Wand2 className={`w-5 h-5 ${isGenerating ? 'animate-spin' : ''}`} />
-            <span className="text-lg">
-              {isGenerating ? 'Generating...' : 'Generate App'}
-            </span>
-            <Zap className="w-5 h-5" />
+        {/* Blueprint Preview Panel */}
+        {hasBlueprint && blueprint && (
+          <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <span>Blueprint Ready</span>
+              </h3>
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center space-x-2 text-sm text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={autoEnhance}
+                    onChange={(e) => onAutoEnhanceChange?.(e.target.checked)}
+                    className="rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
+                  />
+                  <span>Auto-enhance</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <h4 className="text-sm font-medium text-white/80 mb-2">Summary</h4>
+                <p className="text-sm text-white/60">{blueprint.summary}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-white/80 mb-2">Visual Style</h4>
+                <p className="text-sm text-white/60">
+                  {blueprint.visualStyle?.themeWords?.join(', ') || 'Modern, clean design'}
+                </p>
+              </div>
+            </div>
+
+            {blueprint.aiBehaviors?.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-white/80 mb-2">AI Features</h4>
+                <div className="flex flex-wrap gap-2">
+                  {blueprint.aiBehaviors.slice(0, 3).map((behavior, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 text-xs bg-blue-500/20 text-blue-300 rounded-md"
+                    >
+                      {behavior.name}
+                    </span>
+                  ))}
+                  {blueprint.aiBehaviors.length > 3 && (
+                    <span className="px-2 py-1 text-xs bg-white/10 text-white/60 rounded-md">
+                      +{blueprint.aiBehaviors.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </button>
+        )}
+
+        {/* Multi-Stage Generation Buttons */}
+        <div className="space-y-4">
+          <button
+            onClick={() => onGenerateBlueprint?.()}
+            disabled={isGenerating || !appIdea.trim()}
+            className={`w-full font-semibold py-4 px-8 rounded-lg transition-all transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed ${
+              hasBlueprint
+                ? 'bg-white/10 border border-white/20 text-white/80 hover:bg-white/20'
+                : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-3">
+              <Wand2 className={`w-5 h-5 ${isGenerating && generationStage === 'blueprint' ? 'animate-spin' : ''}`} />
+              <span className="text-lg">
+                {isGenerating && generationStage === 'blueprint'
+                  ? 'Generating blueprint...'
+                  : hasBlueprint
+                    ? 'Regenerate Blueprint'
+                    : 'Generate Blueprint'}
+              </span>
+              <Sparkles className="w-5 h-5" />
+            </div>
+          </button>
+
+          {hasBlueprint && (
+            <button
+              onClick={() => onGenerateImplementation?.()}
+              disabled={isGenerating}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold py-4 px-8 rounded-lg transition-all transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <ArrowRight className={`w-5 h-5 ${isGenerating && generationStage === 'implementation' ? 'animate-spin' : ''}`} />
+                <span className="text-lg">
+                  {isGenerating && generationStage === 'implementation'
+                    ? 'Building implementation...'
+                    : hasImplementation
+                      ? 'Rebuild Implementation'
+                      : 'Build Implementation'}
+                </span>
+                <Zap className="w-5 h-5" />
+              </div>
+            </button>
+          )}
+
+          {hasBlueprint && hasImplementation && blueprint?.needsEnhancement && (
+            <button
+              onClick={() => onGenerateEnhancement?.()}
+              disabled={isGenerating}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold py-4 px-8 rounded-lg transition-all transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <Settings className={`w-5 h-5 ${isGenerating && generationStage === 'enhancement' ? 'animate-spin' : ''}`} />
+                <span className="text-lg">
+                  {isGenerating && generationStage === 'enhancement'
+                    ? 'Enhancing experience...'
+                    : 'Enhance Experience'}
+                </span>
+                <Sparkles className="w-5 h-5" />
+              </div>
+            </button>
+          )}
+        </div>
 
         {/* Example Ideas */}
         <div className="mt-8">

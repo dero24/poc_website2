@@ -1,6 +1,6 @@
 import React from 'react';
 
-const AgentTimeline = ({ run, isGenerating, guardrailWarnings = [] }) => {
+const AgentTimeline = ({ run, isGenerating, guardrailWarnings = [], blueprint = null, stageRuns = [] }) => {
   if (isGenerating) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
@@ -34,6 +34,55 @@ const AgentTimeline = ({ run, isGenerating, guardrailWarnings = [] }) => {
 
   return (
     <div className="space-y-4">
+      {/* Blueprint Summary */}
+      {blueprint && (
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-200 mb-3">Blueprint Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt className="uppercase tracking-wide text-blue-200/60 text-xs mb-1">Summary</dt>
+              <dd className="text-blue-100/90">{blueprint.summary || 'No summary available'}</dd>
+            </div>
+            <div>
+              <dt className="uppercase tracking-wide text-blue-200/60 text-xs mb-1">Audience</dt>
+              <dd className="text-blue-100/90">{blueprint.audience || 'General users'}</dd>
+            </div>
+            {blueprint.aiBehaviors?.length > 0 && (
+              <div className="md:col-span-2">
+                <dt className="uppercase tracking-wide text-blue-200/60 text-xs mb-1">AI Features ({blueprint.aiBehaviors.length})</dt>
+                <dd className="text-blue-100/90">
+                  {blueprint.aiBehaviors.map(b => b.name).join(', ')}
+                </dd>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stage Timeline */}
+      {stageRuns.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-white/60 mb-3">Generation Timeline</h3>
+          <div className="space-y-3">
+            {stageRuns.map((stageRun, index) => (
+              <div key={index} className="flex items-center space-x-3 text-sm">
+                <div className={`w-3 h-3 rounded-full ${
+                  stageRun.stage === 'blueprint' ? 'bg-blue-500' :
+                  stageRun.stage === 'implementation' ? 'bg-green-500' :
+                  stageRun.stage === 'enhancement' ? 'bg-purple-500' : 'bg-gray-500'
+                }`}></div>
+                <div className="flex-1">
+                  <span className="text-white/80 capitalize">{stageRun.stage}</span>
+                  <span className="text-white/50 ml-2">
+                    {new Date(stageRun.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {summary ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-white/60 mb-2">Agent summary</h3>

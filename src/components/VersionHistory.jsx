@@ -269,7 +269,30 @@ const VersionHistory = ({ onVersionSelect }) => {
                     <span className="capitalize">{version.template}</span>
                     <span>•</span>
                     <span>{version.code.split('\n').length} lines</span>
+                    {version.blueprint && (
+                      <>
+                        <span>•</span>
+                        <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-300 rounded">
+                          Multi-pass
+                        </span>
+                      </>
+                    )}
+                    {version.stageRuns?.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-xs text-white/60">
+                          {version.stageRuns.length} stages
+                        </span>
+                      </>
+                    )}
                   </div>
+                  
+                  {version.blueprint && (
+                    <div className="mb-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-xs">
+                      <span className="text-blue-300 font-medium">Blueprint: </span>
+                      <span className="text-blue-200/80">{version.blueprint.summary || 'No summary available'}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -25,7 +25,9 @@ class VersionService {
       metadata: appData.metadata || null,
       guardrailWarnings: Array.isArray(appData.guardrailWarnings)
         ? appData.guardrailWarnings.slice(0, 20)
-        : []
+        : [],
+      blueprint: appData.blueprint || null,
+      stageRuns: Array.isArray(appData.stageRuns) ? appData.stageRuns : []
     };
 
     versions.unshift(version); // Add to beginning
@@ -77,7 +79,9 @@ class VersionService {
       previewManifest: version.previewManifest || null,
       guardrailWarnings: Array.isArray(version.guardrailWarnings)
         ? version.guardrailWarnings
-        : []
+        : [],
+      blueprint: version.blueprint || null,
+      stageRuns: Array.isArray(version.stageRuns) ? version.stageRuns : []
     };
     localStorage.setItem(this.currentAppKey, JSON.stringify(payload));
   }

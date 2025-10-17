@@ -1,4 +1,12 @@
 // Groq API service for code generation
+import {
+  buildBlueprintPrompt,
+  buildImplementationPrompt,
+  buildEnhancementPrompt,
+  BLUEPRINT_PROMPTS,
+  IMPLEMENTATION_PROMPTS,
+  ENHANCEMENT_PROMPTS
+} from '../prompts/templates.js';
 
 const SUPPORTED_MODELS = [
   { id: 'groq/compound', label: 'Groq Compound · MCP Agent', capabilities: ['agentic', 'tool-use', 'mcp'], supportsTools: true },
@@ -525,24 +533,44 @@ class GroqService {
       payload.response_format = responseFormat;
     }
 
+    const useResponsesApi = /compound/i.test(payload.model);
+    if (useResponsesApi) {
+      const responsesPayload = {
+        model: payload.model,
+        input: payload.input,
+        tools: payload.tools,
+        stream: Boolean(payload.stream),
+        metadata: payload.metadata,
+        ...requestParameters
+      };
+      if (responseFormat) {
+        responsesPayload.response_format = responseFormat;
+      }
+
+      if (responsesPayload.stream) {
+        return this.runResponsesWorkflowStream(responsesPayload);
+      }
+      return this.runResponsesWorkflow(responsesPayload);
+    }
+
     const endpoint = `${this.baseUrl}/chat/completions`;
-    
+
     // Convert to standard OpenAI format
     const openaiPayload = {
       model: payload.model,
-      messages: payload.input.map(msg => ({
+      messages: payload.input.map((msg) => ({
         role: msg.role,
-        content: msg.content.map(c => c.text).join('')
+        content: msg.content.map((c) => c.text).join('')
       })),
       stream: payload.stream,
       ...payload
     };
-    
+
     // Remove non-OpenAI fields
     delete openaiPayload.input;
     delete openaiPayload.tools;
     delete openaiPayload.metadata;
-    
+
     if (payload.stream) {
       return this.runAgenticWorkflowStream(endpoint, openaiPayload);
     }
@@ -568,84 +596,6 @@ class GroqService {
 
     const data = await response.json();
     const normalized = this.normalizeOpenAIResponse(data, openaiPayload.model);
-    this.lastRun = normalized;
-    return normalized;
-  }
-
-  async runAgenticWorkflowStream(endpoint, payload) {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ ...payload, stream: true })
-    });
-
-    if (!response.ok) {
-      let details = '';
-      try {
-        const errorPayload = await response.json();
-        details = errorPayload?.error?.message || errorPayload?.message || '';
-      } catch (parseError) {
-        details = response.statusText;
-      }
-      throw new Error(`Groq MCP stream error (${response.status}): ${details || 'Unexpected response'}`);
-    }
-
-    if (!response.body) {
-      return { id: null, status: 'failed', messages: [], reasoning: [], toolCalls: [], artifacts: [], metadata: {}, raw: null };
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const events = [];
-    let done = false;
-
-    while (!done) {
-      const chunk = await reader.read();
-      done = chunk.done;
-      if (chunk.value) {
-        buffer += decoder.decode(chunk.value, { stream: true });
-        let separatorIndex = buffer.indexOf('\n\n');
-        while (separatorIndex !== -1) {
-          const eventChunk = buffer.slice(0, separatorIndex);
-          buffer = buffer.slice(separatorIndex + 2);
-          eventChunk
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.startsWith('data:'))
-            .forEach((line) => {
-              const dataLine = line.slice(5).trim();
-              if (!dataLine || dataLine === '[DONE]') {
-                return;
-              }
-              try {
-                const parsed = JSON.parse(dataLine);
-                events.push(parsed);
-              } catch (error) {
-                events.push({ type: 'unknown', raw: dataLine });
-              }
-            });
-          separatorIndex = buffer.indexOf('\n\n');
-        }
-      }
-    }
-
-    let finalPayload = null;
-    for (const event of events) {
-      if (event?.type === 'response.completed' && event?.response) {
-        finalPayload = event.response;
-      }
-    }
-
-    if (!finalPayload) {
-      const fallback = events[events.length - 1]?.response;
-      finalPayload = fallback || null;
-    }
-
-    const normalized = this.normalizeResponse(finalPayload || {}, payload.model, events);
     this.lastRun = normalized;
     return normalized;
   }
@@ -778,6 +728,223 @@ class GroqService {
 
   getLastRun() {
     return this.lastRun;
+  }
+
+  extractJsonFromRun(run) {
+    if (!run) {
+      return null;
+    }
+
+    const tryParse = (value) => {
+      if (!value) return null;
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        try {
+          return JSON.parse(trimmed);
+        } catch (error) {
+          return null;
+        }
+      }
+      if (typeof value === 'object') {
+        return value;
+      }
+      return null;
+    };
+
+    const candidates = [];
+    if (typeof run.finalText === 'string') {
+      candidates.push(run.finalText);
+    }
+    ensureArray(run.messages).forEach((message) => {
+      if (message && typeof message.text === 'string') {
+        candidates.push(message.text);
+      }
+    });
+    if (run.raw) {
+      ensureArray(run.raw.output_text).forEach((entry) => candidates.push(entry));
+      ensureArray(run.raw.output).forEach((entry) => {
+        if (entry?.content) {
+          candidates.push(collectTextFromContent(entry.content));
+        }
+        if (typeof entry?.result === 'string') {
+          candidates.push(entry.result);
+        }
+      });
+    }
+    ensureArray(run.artifacts).forEach((artifact) => {
+      if (artifact?.data) {
+        candidates.push(artifact.data);
+      }
+    });
+
+    for (const candidate of candidates) {
+      const parsed = tryParse(candidate);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  sanitizeBlueprint(blueprint) {
+    if (!blueprint || typeof blueprint !== 'object') {
+      return null;
+    }
+
+    const toArray = (value) => {
+      if (!value) return [];
+      return Array.isArray(value) ? value : [value].filter(Boolean);
+    };
+
+    const coerceString = (value, fallback = '') => {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+      return fallback;
+    };
+
+    const cleanComponents = (components) =>
+      toArray(components).map((component, index) => ({
+        type: coerceString(component?.type, `Component${index + 1}`),
+        description: coerceString(component?.description, ''),
+        aiSupport: coerceString(component?.aiSupport, ''),
+        interactions: toArray(component?.interactions).map((item) => coerceString(item, '').toString()).filter(Boolean)
+      }));
+
+    const cleanSections = toArray(blueprint.sections).map((section, index) => ({
+      id: coerceString(section?.id, `section-${index + 1}`),
+      title: coerceString(section?.title, `Section ${index + 1}`),
+      purpose: coerceString(section?.purpose, ''),
+      components: cleanComponents(section?.components)
+    }));
+
+    const cleanState = toArray(blueprint.state).map((stateItem, index) => ({
+      name: coerceString(stateItem?.name, `state${index}`),
+      type: coerceString(stateItem?.type, 'string'),
+      initial: coerceString(stateItem?.initial, ''),
+      description: coerceString(stateItem?.description, '')
+    }));
+
+    const cleanAiBehaviors = toArray(blueprint.aiBehaviors).map((behavior, index) => ({
+      name: coerceString(behavior?.name, `AI Behavior ${index + 1}`),
+      intent: coerceString(behavior?.intent, ''),
+      trigger: coerceString(behavior?.trigger, ''),
+      input: coerceString(behavior?.input, ''),
+      output: coerceString(behavior?.output, ''),
+      markdown: Boolean(behavior?.markdown)
+    }));
+
+    const cleanAssets = toArray(blueprint.assets).map((asset, index) => ({
+      package: coerceString(asset?.package, `asset-${index + 1}`),
+      cdn: coerceString(asset?.cdn, ''),
+      reason: coerceString(asset?.reason, '')
+    }));
+
+    return {
+      summary: coerceString(blueprint.summary, ''),
+      audience: coerceString(blueprint.audience, ''),
+      valueProp: coerceString(blueprint.valueProp, ''),
+      visualStyle: {
+        themeWords: toArray(blueprint.visualStyle?.themeWords).map((item) => coerceString(item, '')).filter(Boolean),
+        animationNotes: coerceString(blueprint.visualStyle?.animationNotes, ''),
+        colorGuidance: coerceString(blueprint.visualStyle?.colorGuidance, '')
+      },
+      sections: cleanSections,
+      state: cleanState,
+      aiBehaviors: cleanAiBehaviors,
+      assets: cleanAssets,
+      premiumPatterns: toArray(blueprint.premiumPatterns).map((item) => coerceString(item, '')).filter(Boolean),
+      requiresMarkdown: Boolean(blueprint.requiresMarkdown),
+      needsEnhancement: Boolean(blueprint.needsEnhancement),
+      successCriteria: toArray(blueprint.successCriteria).map((item) => coerceString(item, '')).filter(Boolean)
+    };
+  }
+
+  extractBlueprintFromRun(run) {
+    const parsed = this.extractJsonFromRun(run);
+    return this.sanitizeBlueprint(parsed);
+  }
+
+  async generateBlueprint({ appIdea, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
+    if (!appIdea?.trim()) {
+      throw new Error('App idea is required to generate a blueprint');
+    }
+
+    const prompt = buildBlueprintPrompt(appIdea, context);
+    const run = await this.runAgenticWorkflow({
+      systemPrompt: BLUEPRINT_PROMPTS.system,
+      userPrompt: prompt,
+      modelId,
+      tools,
+      metadata: {
+        stage: 'blueprint',
+        appIdea,
+        guardrails: context.guardrails || null
+      },
+      requestParameters: {
+        temperature: 0.2,
+        ...requestParameters
+      }
+    });
+
+    const blueprint = this.extractBlueprintFromRun(run);
+    if (!blueprint) {
+      throw new Error('Failed to parse blueprint from Groq response');
+    }
+
+    return { run, blueprint };
+  }
+
+  async generateImplementation({ blueprint, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
+    if (!blueprint) {
+      throw new Error('Blueprint data is required before implementation');
+    }
+
+    const prompt = buildImplementationPrompt(blueprint, context);
+    const run = await this.runAgenticWorkflow({
+      systemPrompt: IMPLEMENTATION_PROMPTS.system,
+      userPrompt: prompt,
+      modelId,
+      tools,
+      metadata: {
+        stage: 'implementation',
+        summary: blueprint.summary || '',
+        themeWords: blueprint.visualStyle?.themeWords || []
+      },
+      requestParameters: {
+        temperature: 0.3,
+        ...requestParameters
+      }
+    });
+
+    return { run };
+  }
+
+  async generateEnhancement({ blueprint, currentCode, context = {}, modelId = 'groq/compound', tools = [], requestParameters = {} }) {
+    if (!currentCode) {
+      throw new Error('Current implementation code is required for enhancement');
+    }
+
+    const prompt = buildEnhancementPrompt(blueprint, currentCode, context);
+    const run = await this.runAgenticWorkflow({
+      systemPrompt: ENHANCEMENT_PROMPTS.system,
+      userPrompt: prompt,
+      modelId,
+      tools,
+      metadata: {
+        stage: 'enhancement',
+        summary: blueprint?.summary || '',
+        enhancement: true
+      },
+      requestParameters: {
+        temperature: 0.25,
+        ...requestParameters
+      }
+    });
+
+    return { run };
   }
 
   async generateCode(prompt, model = SUPPORTED_MODELS[0]?.id) {

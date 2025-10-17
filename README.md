@@ -7,18 +7,19 @@ Transform natural language ideas into fully-working web applications in seconds 
 ### Instant App Generation
 - **Natural Language Input**: Describe your app idea in plain English
 - **Immediate Results**: Get working React applications in seconds
-- **Always Functional**: Guaranteed working output with intelligent fallbacks
+- **Preview Sandbox**: Generated code renders instantly inside an isolated iframe
 
 ### Groq-Powered AI
 - **Model Selection**: Choose from multiple Groq models (Llama, Mixtral, Gemma)
-- **Optimized Prompts**: Token-efficient templates for maximum performance
-- **Elite Code Generation**: Professional-quality React code every time
+- **Agentic & Legacy Modes**: Use Groq compound (MCP) models or fall back to chat-completions-compatible models
+- **Blueprint Services (In Progress)**: New `groqService.generateBlueprint()` / `generateImplementation()` / `generateEnhancement()` helpers prepare the upcoming multi-pass workflow
 
 ### Advanced Capabilities
 - **Live Preview**: Instant browser preview of generated apps
 - **Code Viewer**: Syntax-highlighted code editor with Monaco
 - **Version History**: Track and manage all your generated apps
 - **Export/Import**: Download full projects or individual components
+- **Guardrails**: Sanitization, prompt-injection defenses, and CDN-only package enforcement built into `groqService`
 
 ### Modern UI/UX
 - **Beautiful Interface**: Glass-morphism design with smooth animations
@@ -32,6 +33,7 @@ Transform natural language ideas into fully-working web applications in seconds 
 - **Icons**: Lucide React
 - **AI Provider**: Groq API (exclusively)
 - **Storage**: Local Storage for versions and settings
+- **Agent Services**: `groqService.js` orchestrates both standard chat completions and Groq MCP Responses API calls
 
 ## 📦 Installation
 
@@ -70,24 +72,74 @@ Enter a natural language description of your app idea:
 - **Model**: Pick your preferred Groq model
 - **AI Features**: Enable AI capabilities if needed
 
-### 3. Generate & Preview
-- Groq generates professional React code
+### 3. Generate & Preview (Current Flow)
+- Groq generates professional React code in a single pass
 - Instant live preview in browser
 - View and edit the generated code
 - Export full projects
 
-### 4. Version Control
-- All apps automatically saved
-- Browse version history
-- Export/import functionality
-- Search and filter capabilities
+### 4. Version Control & Guardrails
+- All apps automatically saved to local storage
+- Browse version history, import/export snapshots
+- Preview manifest warnings and guardrail alerts surface in the Agent Timeline
+
+> **Heads up:** The multi-pass workflow (Blueprint → Implementation → Enhancement) is under active development. See `PROJECT_PENDING.md` for the migration plan.
+
+## 🔄 Current Workflow
+
+### Generate Tab
+- **Step 1** – Describe your idea in `AppGenerator`: select model, toggle MCP tools, and submit the concept.
+- **Step 2** – `App.jsx` composes a prompt and calls `groqService.runAgenticWorkflow()` (single pass today).
+- **Step 3** – The response is validated (`groqService.validateCode()`), stored via `versionService`, and previewed.
+
+### Preview / Code Tabs
+- **LivePreview** renders the latest code inside a sandbox with CDN helpers.
+- **CodeViewer** exposes Monaco editing with autosave into `versionService` and a live preview refresh.
+
+### History Tab
+- Search, filter, export, or delete saved apps.
+- Selecting an entry hydrates the preview, code editor, and Agent Timeline.
+
+## 🧱 Architecture Overview
+
+```mermaid
+flowchart LR
+  subgraph UI
+    A[AppGenerator.jsx]
+    B[LivePreview.jsx]
+    C[CodeViewer.jsx]
+    D[VersionHistory.jsx]
+    T[AgentTimeline.jsx]
+  end
+  subgraph Services
+    G[groqService.js]
+    V[versionService.js]
+  end
+  User((User)) --> A
+  A -->|submit| G
+  G -->|Groq API| H[Groq Responses / Chat API]
+  G -->|validation + manifest| T
+  G -->|save| V
+  V --> D
+  V --> B
+  V --> C
+  B --> User
+  C --> User
+  D --> User
+  T --> User
+```
+
+### Key Notes
+- `groqService` detects Groq compound models and routes them through the Responses API with MCP tool support.
+- `versionService` centralizes persistence, enabling quick hydration across tabs.
+- Blueprint/implementation helpers already exist and will be wired into the UI in the upcoming multi-pass release.
 
 ## 🔧 Architecture
 
 ### Prompt System (`/src/prompts/`)
-- **Token-optimized templates** for different app types
-- **Injection system** for AI features
-- **Fallback mechanisms** for error handling
+- **Multi-pass templates**: `buildBlueprintPrompt()`, `buildImplementationPrompt()`, `buildEnhancementPrompt()`
+- **Guardrail builder**: `buildGuardrailRules()` assembles tone, accessibility, security, and CDN expectations
+- **Fallback mechanisms**: Guardrails prevent unsafe assets and inject markdown renderer guidance
 
 ### Services (`/src/services/`)
 - **GroqService**: API integration and code generation

@@ -1,171 +1,180 @@
-// Optimized prompt templates for token efficiency
-export const PROMPT_TEMPLATES = {
-  base: {
-    name: "Basic App",
-    template: `Create a React app: {APP_IDEA}
 
-STRICT RULES:
-- Use React hooks, never class components.
-- Include all imports at top. Output ONLY working React JSX (no markdown or commentary).
-- Make it breathtaking: modern, responsive, animated interactions, thoughtful UX microcopy.
-- Ship a single functional component export with complete state, handlers, and sample data so it runs instantly in-browser.
-- Never prompt the user for API keys. Environment already supplies one.
-- If AI logic is needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it securely. Never expose or log the key.
-- When AI should drive experiences, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}. Harness Groq reasoning for decision-making (not just chat UIs) to deliver intelligent outcomes that delight users.
-- Follow Morphic guardrails: sanitize inputs, prevent prompt injection, clearly label AI actions, and fail gracefully.
-- Inject smart automation when appropriate (e.g., scheduling, recommendations, predictive insights) so users are impressed and the experience feels magical.
-- Showcase premium visuals using modern open-source CDN packages (Tailwind, Framer Motion, Lucide, Recharts, etc.) with gradients, depth, layered glassmorphism, and delightful micro-animations.
-- When rendering AI responses, format content in Markdown (headings, emphasis, lists) and display it beautifully using a Markdown parser such as marked (via CDN) or react-markdown with styled containers.
-- Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
-- Write modular helper functions as needed but keep everything within a single file.
-- For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
-- Ensure no TODOs, placeholders, or comments remain. All data and logic must be production-ready.
-- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
-{AI_FEATURES}
+const BLUEPRINT_SYSTEM_PROMPT = `You are Morphic Web's product design strategist. Your mission is to translate a short app idea into a rich execution plan that will delight end users. Think like a creative director, UX lead, and AI systems architect collaborating together. Build layered experiences with purposeful AI behaviors, sophisticated visuals, and thoughtful interactions, all grounded in open-source browser-friendly tooling.`;
 
-Return complete working code with nothing else:`
+const IMPLEMENTATION_SYSTEM_PROMPT = `You are Morphic Web's principal front-end engineer. You receive a structured blueprint and guardrails from strategy. Your job is to construct a flawless, production-ready React 18 single-file experience that matches the blueprint and Morphic guardrails precisely. Favor Tailwind, Framer Motion, Lucide, Recharts, and other CDN-available packages; render AI responses elegantly using Markdown; keep everything secure, accessible, and polished.`;
+
+const ENHANCEMENT_SYSTEM_PROMPT = `You are Morphic Web's senior experience director. You are given the current React implementation, the original blueprint, and refinement goals. Evolve the code to feel even more premium, add thoughtful AI-powered touches, upgrade motion and theming, and ensure every interaction feels intentional. Produce a fully updated React file—no commentary.`;
+
+const BLUEPRINT_TEMPLATE = `APP IDEA: {APP_IDEA}
+
+MORPHIC CONTEXT:
+{CONTEXT_JSON}
+
+TASK:
+- Produce JSON only.
+- Follow this schema exactly:
+{
+  "summary": string,
+  "audience": string,
+  "valueProp": string,
+  "visualStyle": {
+    "themeWords": string[],
+    "animationNotes": string,
+    "colorGuidance": string
   },
+  "sections": [
+    {
+      "id": string,
+      "title": string,
+      "purpose": string,
+      "components": [
+        {
+          "type": string,
+          "description": string,
+          "aiSupport": string,
+          "interactions": string[]
+        }
+      ]
+    }
+  ],
+  "state": [
+    {
+      "name": string,
+      "type": string,
+      "initial": string,
+      "description": string
+    }
+  ],
+  "aiBehaviors": [
+    {
+      "name": string,
+      "intent": string,
+      "trigger": string,
+      "input": string,
+      "output": string,
+      "markdown": boolean
+    }
+  ],
+  "assets": [
+    {
+      "package": string,
+      "cdn": string,
+      "reason": string
+    }
+  ],
+  "premiumPatterns": string[],
+  "requiresMarkdown": boolean,
+  "needsEnhancement": boolean,
+  "successCriteria": string[]
+}
 
-  aiChat: {
-    name: "AI Chat App",
-    template: `Create React chat app: {APP_IDEA}
+- Ensure every string value is populated.
+- Use concise yet expressive language.
+- Set requiresMarkdown true when any AI response is multi-line or formatted.
+- Set needsEnhancement true when additional polish pass would materially upgrade the experience.`;
 
-REQUIREMENTS:
-- Working React JSX only
-- Use useState, useEffect hooks
-- Groq API integration with key: {API_KEY}
-- Chat interface with messages
-- Send/receive functionality with AI responses formatted in Markdown
-- Tailwind CSS styling + Lucide icons + Framer Motion 
-- Mobile responsive + dark mode + glassmorphism + micro-animations
-- No TODOs, placeholders, or comments remain. All data and logic must be production-ready.
-- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
-{AI_FEATURES}
+const IMPLEMENTATION_TEMPLATE = `APP BLUEPRINT JSON:
+{BLUEPRINT_JSON}
 
-API endpoint available: /api/groq/chat
-Return complete code:`
-  },
+PROTECTED RULES:
+[[PROTECTED_RULES]]
+{GUARDRAILS_JSON}
+[[/PROTECTED_RULES]]
 
-  dashboard: {
-    name: "Dashboard App", 
-    template: `Create React dashboard: {APP_IDEA}
+DELIVERABLE:
+- Return a single React 18 component file.
+- Place all imports at top; use only CDN-available libraries listed in guardrails or blueprint assets.
+- Ensure AI behaviors call Groq via fetch with Bearer GROQ_API_KEY (provided globally).
+- Render any AI text using Markdown (marked or react-markdown) wrapped in elegant styled containers.
+- Implement sections and components exactly as described, with premium motion, glassmorphism, gradients, and responsive layouts.
+- Include fallback UI, loading states, and error handling for each AI action.
+- No TODOs, comments, or placeholders. Ship production-ready JSX only.`;
 
-SPECS:
-- Modern dashboard layout
-- Charts/graphs if needed
-- Sidebar navigation
-- Responsive grid system
-- Tailwind CSS + Lucide icons + Framer Motion 
-- Mobile responsive + dark mode + glassmorphism + micro-animations
-- Working React hooks 
-- No external data calls
-{AI_FEATURES}
+const ENHANCEMENT_TEMPLATE = `CURRENT BLUEPRINT JSON:
+{BLUEPRINT_JSON}
 
-Output working JSX:`
-  },
+CURRENT IMPLEMENTATION:
+{CURRENT_CODE}
 
-  game: {
-    name: "Interactive Game",
-    template: `Create React game: {APP_IDEA}
+PROTECTED RULES:
+[[PROTECTED_RULES]]
+{GUARDRAILS_JSON}
+[[/PROTECTED_RULES]]
 
-GAME RULES:
-- Interactive gameplay
-- Score tracking
-- Game state management
-- Keyboard/mouse controls
-- Animated elements
-- Tailwind CSS styling
-- React hooks only
-{AI_FEATURES}
+MISSION:
+- Upgrade the app to feel even more premium and intelligent without regressing functionality.
+- Tighten animations, reinforce theme words, add delightful micro-interactions, and expand AI behaviors where beneficial.
+- Address any success criteria not yet satisfied.
+- Return the full updated React file—no commentary.`;
 
-Return playable code:`
-  },
-
-  utility: {
-    name: "Utility Tool",
-    template: `Create React utility: {APP_IDEA}
-
-UTILITY SPECS:
-- Functional tool interface
-- Input/output handling
-- Real-time calculations
-- Clean, minimal design
-- Form validation
-- Tailwind CSS
-- React hooks
-{AI_FEATURES}
-
-Output working tool:`
-  }
+export const BLUEPRINT_PROMPTS = {
+  system: BLUEPRINT_SYSTEM_PROMPT,
+  template: BLUEPRINT_TEMPLATE
 };
 
-export const AI_FEATURES_INJECTION = `
-GROQ USAGE NOTES:
-- Showcase premium visuals using modern open-source CDN packages (Tailwind, Framer Motion, Lucide, Recharts, etc.) with gradients, depth, layered glassmorphism, and delightful micro-animations.
-- When rendering AI responses, format content in Markdown (headings, emphasis, lists) and display it beautifully using a Markdown parser such as marked (via CDN) or react-markdown with styled containers.
-- Respect user intent: the app must fulfill the idea precisely while over-delivering via creative features and AI augmentation.
-- Write modular helper functions as needed but keep everything within a single file.
-- For AI-powered controls (buttons, sliders, forms), wire interactions through Groq so outputs feel purposeful and contextual.
-- Ensure no TODOs, placeholders, or comments remain. All data and logic must be production-ready.
-- Assume the preview iframe runs sandboxed. Do not use unsupported imports; rely on browser-safe CDNs.
-- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
-- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
-- Send the selected model '{MODEL_ID}' alongside any messages payload.
-- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
-- Never request or display the API key to the user.
-- Example fetch call:
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${GROQ_API_KEY}\`
-    },
-    body: JSON.stringify({
-      model: '{MODEL_ID}',
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.7
-    })
-  });
-`;
+export const IMPLEMENTATION_PROMPTS = {
+  system: IMPLEMENTATION_SYSTEM_PROMPT,
+  template: IMPLEMENTATION_TEMPLATE
+};
 
-export const FALLBACK_CODE = `
-import React, { useState } from 'react';
+export const ENHANCEMENT_PROMPTS = {
+  system: ENHANCEMENT_SYSTEM_PROMPT,
+  template: ENHANCEMENT_TEMPLATE
+};
 
-export default function FallbackApp() {
-  const [message, setMessage] = useState('App generation failed - using fallback');
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Generation Error</h1>
-        <p className="text-gray-600 mb-6">{message}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    </div>
-  );
-}
-`;
-
-export function buildPrompt(template, appIdea, options = {}) {
-  const normalized = typeof options === 'boolean'
-    ? { includeAI: options }
-    : (options ?? {});
-
+export function buildGuardrailRules(options = {}) {
   const {
-    apiKey = '',
-    modelId = '',
-    includeAI = true
-  } = normalized;
+    appIdea = '',
+    tone = ['futuristic', 'glassmorphic', 'elevated'],
+    accessibility = ['WCAG AA contrast', 'motion-safe fallbacks'],
+    cdnPackages = ['tailwindcss', 'framer-motion', 'lucide-react', 'recharts', 'axios', 'marked'],
+    aiPrinciples = ['AI must deliver purposeful automation', 'Do not prompt users for API keys', 'Render AI responses in Markdown']
+  } = options;
 
-  let prompt = template.replace('{APP_IDEA}', appIdea);
-  prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
-  prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
-  prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
-  return prompt;
+  return {
+    appIdea,
+    tone,
+    accessibility,
+    cdnPackages,
+    aiPrinciples,
+    markdownRenderer: 'marked via CDN or react-markdown',
+    stylingExpectations: 'Layered gradients, glassmorphism, multi-level depth, micro-interactions, responsive grid design',
+    security: ['Sanitize user input', 'Never leak GROQ_API_KEY', 'Validate external content before rendering']
+  };
+}
+
+function stringify(value) {
+  return JSON.stringify(value, null, 2);
+}
+
+export function buildBlueprintPrompt(appIdea, context = {}) {
+  const guardrails = buildGuardrailRules(context.guardrails || {});
+  const payload = {
+    appIdea,
+    theme: context.theme || 'futuristic-premium',
+    persona: context.persona || 'General creative professional',
+    enabledTools: context.enabledTools || [],
+    desiredMood: context.desiredMood || ['luxury', 'confident', 'intelligent'],
+    aiExpectations: context.aiExpectations || ['Automation over simple chat', 'Context-aware recommendations', 'Markdown formatted responses'],
+    guardrails
+  };
+
+  return BLUEPRINT_TEMPLATE
+    .replace('{APP_IDEA}', appIdea)
+    .replace('{CONTEXT_JSON}', stringify(payload));
+}
+
+export function buildImplementationPrompt(blueprint, context = {}) {
+  const guardrails = buildGuardrailRules(context.guardrails || {});
+  return IMPLEMENTATION_TEMPLATE
+    .replace('{BLUEPRINT_JSON}', stringify(blueprint))
+    .replace('{GUARDRAILS_JSON}', stringify(guardrails));
+}
+
+export function buildEnhancementPrompt(blueprint, currentCode, context = {}) {
+  const guardrails = buildGuardrailRules(context.guardrails || {});
+  return ENHANCEMENT_TEMPLATE
+    .replace('{BLUEPRINT_JSON}', stringify(blueprint))
+    .replace('{CURRENT_CODE}', currentCode)
+    .replace('{GUARDRAILS_JSON}', stringify(guardrails));
 }
