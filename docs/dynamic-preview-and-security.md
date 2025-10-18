@@ -44,7 +44,6 @@ Ensure the agentic workflow follows security guardrails, never leaks secrets, an
 - **Stage Prompting**: demand JSON blueprints, React implementations without commentary, and JSON manifests with strict fields.
 - **Normalization**: remove internal reasoning tags, sanitize outputs, enforce model IDs, and ensure export/default component presence.
 - **Persistence**: store reasoning, tool calls, metadata, and manifest summaries with each app version; expose guardrail warnings in the UI timeline.
-- **Secret Hygiene**: replace literal API keys with runtime helpers, prevent raw keys from entering notes or docs, and rotate keys if exposure occurs.
 
 ### Operational Guidelines
 - Keep prompts synchronized with evolving guardrails; revise on policy changes.

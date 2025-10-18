@@ -80,7 +80,7 @@ Enter a natural language description of your app idea:
 - Export full projects
 
 ### 3.1 Dynamic Preview & AI Repair
-- The preview now auto-detects libraries and injects CDNs dynamically using `src/lib/previewRuntime.js`.
+- The preview auto-detects libraries and injects CDNs dynamically using `src/lib/previewRuntime.js`.
 - `src/components/LivePreview.jsx` first tries dynamic injection; on preview errors, click "Fix Preview (AI)" to request a strict JSON Preview Manifest from Groq.
 - The manifest is persisted per version via `versionService.updateVersion()` and rendered via the manifest path.
 - This keeps previews resilient without npm installs, relying only on browser-safe CDNs and fallbacks.
@@ -90,7 +90,7 @@ Enter a natural language description of your app idea:
 - Browse version history, import/export snapshots
 - Preview manifest warnings and guardrail alerts surface in the Agent Timeline
 
-> **Heads up:** The multi-pass workflow (Blueprint → Implementation → Enhancement) is under active development. See `PROJECT_PENDING.md` for the migration plan.
+> **Heads up:** The multi-pass workflow (Blueprint → Implementation) needs to be accomplished
 
 ## 🔄 Current Workflow
 
