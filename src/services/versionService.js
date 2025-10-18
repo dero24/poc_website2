@@ -100,6 +100,22 @@ class VersionService {
     localStorage.removeItem(this.currentAppKey);
   }
 
+  updateVersion(id, partial) {
+    if (!id) return null;
+    const versions = this.getAllVersions();
+    const idx = versions.findIndex(v => v.id === id);
+    if (idx === -1) return null;
+    const updated = { ...versions[idx], ...partial };
+    versions[idx] = updated;
+    localStorage.setItem(this.storageKey, JSON.stringify(versions));
+    // If this is the current app, update it too
+    const current = this.getCurrentApp();
+    if (current && current.id === id) {
+      this.setCurrentApp(updated);
+    }
+    return updated;
+  }
+
   exportVersion(id) {
     const version = this.getVersion(id);
     if (!version) return null;

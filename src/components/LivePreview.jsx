@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RefreshCw, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Play, RefreshCw, ExternalLink, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react';
+import groqService from '../services/groqService.js';
+import versionService from '../services/versionService.js';
+import { buildPreviewHTML, detectPackages } from '../lib/previewRuntime.js';
 
 const escapeHtmlAttribute = (value) => String(value ?? '').replace(/"/g, '&quot;');
 const escapeInlineScript = (value) => String(value ?? '').replace(/<\/(script)/gi, '<\\/$1');
@@ -42,46 +45,45 @@ const LEGACY_BODY_STYLE = `body { margin: 0; padding: 0; font-family: -apple-sys
 
 const buildLegacyRuntimeScript = (code) => {
   const runtimeContent = `
-// Wait for critical CDN scripts to load
-function initializeApp() {
-  console.log('🎯 Initializing React app...');
-
-  // Ensure critical globals exist even if CDN failed
-  if (!window.React) {
-    window.React = {
-      createElement: (type, props, ...children) => {
-        if (typeof type === 'function') {
-          return type(props || {}, ...children);
-        }
-        return { type, props: props || {}, children };
-      },
-      useState: (initial) => { let s = initial; const set = (v) => { s = v; }; return [s, set]; },
-      useEffect: () => {},
-      useRef: () => ({ current: null }),
-      useMemo: (fn) => fn(),
-      useCallback: (fn) => fn,
-      forwardRef: (fn) => fn,
-      Fragment: 'fragment',
-      Component: class {
-        constructor(props) {
-          this.props = props || {};
-          this.state = {};
-        }
-        setState(update) {
-          this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state, this.props) : update) };
-        }
+// Ensure baseline globals before any optional libraries execute
+function ensurePreviewShims() {
+  window.React = window.React || {};
+  if (!window.React.createElement) {
+    window.React.createElement = (type, props, ...children) => {
+      if (typeof type === 'function') {
+        return type(props || {}, ...children);
+      }
+      return { type, props: props || {}, children };
+    };
+  }
+  if (!window.React.useState) {
+    window.React.useState = (initial) => { let s = initial; const set = (v) => { s = v; }; return [s, set]; };
+  }
+  if (!window.React.useEffect) window.React.useEffect = () => {};
+  if (!window.React.useRef) window.React.useRef = () => ({ current: null });
+  if (!window.React.useMemo) window.React.useMemo = (fn) => fn();
+  if (!window.React.useCallback) window.React.useCallback = (fn) => fn;
+  if (!window.React.forwardRef) window.React.forwardRef = (fn) => fn;
+  if (!window.React.Fragment) window.React.Fragment = 'fragment';
+  if (!window.React.Component) {
+    window.React.Component = class {
+      constructor(props) {
+        this.props = props || {};
+        this.state = {};
+      }
+      setState(update) {
+        this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state, this.props) : update) };
       }
     };
   }
-  if (!window.ReactDOM) {
-    window.ReactDOM = {
-      createRoot: (container) => ({
-        render: () => { if (container) container.innerHTML = ''; }
-      })
-    };
+
+  window.ReactDOM = window.ReactDOM || {};
+  if (!window.ReactDOM.createRoot) {
+    window.ReactDOM.createRoot = (container) => ({
+      render: () => { if (container) container.innerHTML = ''; }
+    });
   }
 
-  // Global shims for common libs when not imported
   if (!window.motion) {
     window.motion = new Proxy({}, {
       get(_, tag) {
@@ -97,18 +99,26 @@ function initializeApp() {
           delete clean.whileTap;
           delete clean.drag;
           delete clean.dragConstraints;
-          return React.createElement(tag, clean, children);
+          return window.React.createElement(tag, clean, children);
         };
       }
     });
   }
+
   window.AnimatePresence = window.AnimatePresence || (({ children }) => children || null);
-  window.Lucide = window.Lucide || (({ name, className, ...props }) => React.createElement('span', { className, ...props }, (name === 'loader' || name === 'loader-2') ? '⏳' : '❓'));
-  // Minimal Recharts shims (no-op components)
+  window.Lucide = window.Lucide || (({ name, className, ...props }) => window.React.createElement('span', { className, ...props }, (name === 'loader' || name === 'loader-2') ? '⏳' : '❓'));
   window.LineChart = window.LineChart || (() => null);
   window.Line = window.Line || (() => null);
   window.XAxis = window.XAxis || (() => null);
   window.YAxis = window.YAxis || (() => null);
+}
+ensurePreviewShims();
+
+// Wait for critical CDN scripts to load
+function initializeApp() {
+  console.log('🎯 Initializing React app...');
+
+  ensurePreviewShims();
 
   const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
@@ -509,6 +519,16 @@ const buildLegacyDocument = (code) => {
 </html>`;
 };
 
+const buildDynamicDocument = (code) => {
+  try {
+    const detection = detectPackages(code || '');
+    return buildPreviewHTML(code || '', detection);
+  } catch (err) {
+    console.warn('Dynamic preview build failed, falling back to legacy:', err);
+    return buildLegacyDocument(code || '');
+  }
+};
+
 const buildManifestDocument = (manifest, code) => {
   const headParts = [
     '<meta charset="UTF-8" />',
@@ -568,17 +588,20 @@ const buildManifestDocument = (manifest, code) => {
 </html>`;
 };
 
-const createPreviewDocument = (app) => {
+const createPreviewDocument = (app, localManifestOverride) => {
   const { previewManifest, code } = app || {};
-  if (previewManifest) {
-    return buildManifestDocument(previewManifest, code || '');
+  const manifest = localManifestOverride || previewManifest;
+  if (manifest) {
+    return buildManifestDocument(manifest, code || '');
   }
-  return buildLegacyDocument(code || '');
+  return buildDynamicDocument(code || '');
 };
 
 const LivePreview = ({ app }) => {
   const [previewError, setPreviewError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFixing, setIsFixing] = useState(false);
+  const [localManifest, setLocalManifest] = useState(null);
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -605,7 +628,7 @@ const LivePreview = ({ app }) => {
     const iframe = iframeRef.current;
     if (iframe) {
       try {
-        const htmlContent = createPreviewDocument(app);
+        const htmlContent = createPreviewDocument(app, localManifest);
         console.log('🚀 Loading preview, content length:', htmlContent.length);
 
         // Clear any existing content first
@@ -629,14 +652,14 @@ const LivePreview = ({ app }) => {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [app]);
+  }, [app, localManifest]);
 
   const refreshPreview = () => {
     if (!iframeRef.current || !app?.code) return;
     setIsLoading(true);
     setPreviewError(null);
     try {
-      const htmlContent = createPreviewDocument(app);
+      const htmlContent = createPreviewDocument(app, localManifest);
       console.log('Refreshing iframe content, length:', htmlContent.length);
       iframeRef.current.srcdoc = htmlContent;
     } catch (error) {
@@ -646,11 +669,43 @@ const LivePreview = ({ app }) => {
     }
   };
 
+  const fixPreviewWithAI = async () => {
+    if (!app?.code) return;
+    try {
+      setIsFixing(true);
+      setPreviewError(null);
+      const { manifest } = await groqService.generatePreviewManifestStrict({
+        code: app.code,
+        context: {},
+        modelId: app.model || 'llama-3.1-70b-versatile'
+      });
+      setLocalManifest(manifest);
+      if (app.id) {
+        const updated = versionService.updateVersion(app.id, { previewManifest: manifest });
+        if (!updated) {
+          // Fallback: persist to current app snapshot if version id is not in history yet
+          versionService.setCurrentApp({ ...app, previewManifest: manifest });
+        }
+      }
+      // Force refresh with the new manifest
+      if (iframeRef.current) {
+        const htmlContent = createPreviewDocument(app, manifest);
+        iframeRef.current.srcdoc = htmlContent;
+      }
+      setIsLoading(false);
+    } catch (err) {
+      console.error('AI manifest generation failed:', err);
+      setPreviewError(err?.message || 'Failed to generate preview manifest');
+    } finally {
+      setIsFixing(false);
+    }
+  };
+
   const openInNewTab = () => {
     if (!app?.code) return;
 
     try {
-      const htmlContent = createPreviewDocument(app);
+      const htmlContent = createPreviewDocument(app, localManifest);
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -706,6 +761,14 @@ const LivePreview = ({ app }) => {
             <RefreshCw className="w-4 h-4" />
             <span>Refresh</span>
           </button>
+          <button
+            onClick={fixPreviewWithAI}
+            disabled={isFixing}
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-60 text-white rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{isFixing ? 'Fixing…' : 'Fix Preview (AI)'}</span>
+          </button>
           
           <button
             onClick={openInNewTab}
@@ -743,12 +806,22 @@ const LivePreview = ({ app }) => {
                 <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-red-700 mb-2">Preview Error</h3>
                 <p className="text-red-600 mb-4">{previewError}</p>
-                <button
-                  onClick={refreshPreview}
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                >
-                  Try Again
-                </button>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={refreshPreview}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={fixPreviewWithAI}
+                    disabled={isFixing}
+                    className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-60 text-white rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {isFixing ? 'Fixing…' : 'Fix with AI'}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

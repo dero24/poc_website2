@@ -5,6 +5,7 @@ import {
   BLUEPRINT_PROMPTS,
   IMPLEMENTATION_PROMPTS
 } from '../prompts/templates.js';
+import { PREVIEW_MANIFEST_PROMPTS, buildPreviewManifestPrompt } from '../prompts/previewManifestPrompts.js';
 
 const SUPPORTED_MODELS = [
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile', capabilities: ['agentic', 'analysis'], supportsTools: false },
@@ -911,6 +912,31 @@ class GroqService {
     });
 
     return { run };
+  }
+
+  async generatePreviewManifestStrict({ code, context = {}, modelId = 'llama-3.1-70b-versatile', requestParameters = {} }) {
+    if (!code || !code.trim()) {
+      throw new Error('Code is required to generate a preview manifest');
+    }
+
+    const userPrompt = buildPreviewManifestPrompt(code, context);
+    const run = await this.runAgenticWorkflow({
+      systemPrompt: PREVIEW_MANIFEST_PROMPTS.system,
+      userPrompt,
+      modelId,
+      metadata: { stage: 'preview-manifest' },
+      responseFormat: { type: 'json_object' },
+      requestParameters: {
+        temperature: 0.1,
+        ...requestParameters
+      }
+    });
+
+    const manifest = this.extractPreviewManifest(run);
+    if (!manifest) {
+      throw new Error('Failed to produce a valid preview manifest');
+    }
+    return { run, manifest };
   }
 
 

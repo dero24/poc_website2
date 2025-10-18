@@ -16,6 +16,7 @@ Transform natural language ideas into fully-working web applications in seconds 
 
 ### Advanced Capabilities
 - **Live Preview**: Instant browser preview of generated apps
+- **Dynamic Preview & AI Repair**: The preview now auto-detects libraries and injects CDNs dynamically using `src/lib/previewRuntime.js`.
 - **Code Viewer**: Syntax-highlighted code editor with Monaco
 - **Version History**: Track and manage all your generated apps
 - **Export/Import**: Download full projects or individual components
@@ -77,6 +78,12 @@ Enter a natural language description of your app idea:
 - Instant live preview in browser
 - View and edit the generated code
 - Export full projects
+
+### 3.1 Dynamic Preview & AI Repair
+- The preview now auto-detects libraries and injects CDNs dynamically using `src/lib/previewRuntime.js`.
+- `src/components/LivePreview.jsx` first tries dynamic injection; on preview errors, click "Fix Preview (AI)" to request a strict JSON Preview Manifest from Groq.
+- The manifest is persisted per version via `versionService.updateVersion()` and rendered via the manifest path.
+- This keeps previews resilient without npm installs, relying only on browser-safe CDNs and fallbacks.
 
 ### 4. Version Control & Guardrails
 - All apps automatically saved to local storage
