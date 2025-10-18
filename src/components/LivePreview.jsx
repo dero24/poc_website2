@@ -42,46 +42,45 @@ const LEGACY_BODY_STYLE = `body { margin: 0; padding: 0; font-family: -apple-sys
 
 const buildLegacyRuntimeScript = (code) => {
   const runtimeContent = `
-// Wait for critical CDN scripts to load
-function initializeApp() {
-  console.log('🎯 Initializing React app...');
-
-  // Ensure critical globals exist even if CDN failed
-  if (!window.React) {
-    window.React = {
-      createElement: (type, props, ...children) => {
-        if (typeof type === 'function') {
-          return type(props || {}, ...children);
-        }
-        return { type, props: props || {}, children };
-      },
-      useState: (initial) => { let s = initial; const set = (v) => { s = v; }; return [s, set]; },
-      useEffect: () => {},
-      useRef: () => ({ current: null }),
-      useMemo: (fn) => fn(),
-      useCallback: (fn) => fn,
-      forwardRef: (fn) => fn,
-      Fragment: 'fragment',
-      Component: class {
-        constructor(props) {
-          this.props = props || {};
-          this.state = {};
-        }
-        setState(update) {
-          this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state, this.props) : update) };
-        }
+// Ensure baseline globals before any optional libraries execute
+function ensurePreviewShims() {
+  window.React = window.React || {};
+  if (!window.React.createElement) {
+    window.React.createElement = (type, props, ...children) => {
+      if (typeof type === 'function') {
+        return type(props || {}, ...children);
+      }
+      return { type, props: props || {}, children };
+    };
+  }
+  if (!window.React.useState) {
+    window.React.useState = (initial) => { let s = initial; const set = (v) => { s = v; }; return [s, set]; };
+  }
+  if (!window.React.useEffect) window.React.useEffect = () => {};
+  if (!window.React.useRef) window.React.useRef = () => ({ current: null });
+  if (!window.React.useMemo) window.React.useMemo = (fn) => fn();
+  if (!window.React.useCallback) window.React.useCallback = (fn) => fn;
+  if (!window.React.forwardRef) window.React.forwardRef = (fn) => fn;
+  if (!window.React.Fragment) window.React.Fragment = 'fragment';
+  if (!window.React.Component) {
+    window.React.Component = class {
+      constructor(props) {
+        this.props = props || {};
+        this.state = {};
+      }
+      setState(update) {
+        this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state, this.props) : update) };
       }
     };
   }
-  if (!window.ReactDOM) {
-    window.ReactDOM = {
-      createRoot: (container) => ({
-        render: () => { if (container) container.innerHTML = ''; }
-      })
-    };
+
+  window.ReactDOM = window.ReactDOM || {};
+  if (!window.ReactDOM.createRoot) {
+    window.ReactDOM.createRoot = (container) => ({
+      render: () => { if (container) container.innerHTML = ''; }
+    });
   }
 
-  // Global shims for common libs when not imported
   if (!window.motion) {
     window.motion = new Proxy({}, {
       get(_, tag) {
@@ -97,18 +96,26 @@ function initializeApp() {
           delete clean.whileTap;
           delete clean.drag;
           delete clean.dragConstraints;
-          return React.createElement(tag, clean, children);
+          return window.React.createElement(tag, clean, children);
         };
       }
     });
   }
+
   window.AnimatePresence = window.AnimatePresence || (({ children }) => children || null);
-  window.Lucide = window.Lucide || (({ name, className, ...props }) => React.createElement('span', { className, ...props }, (name === 'loader' || name === 'loader-2') ? '⏳' : '❓'));
-  // Minimal Recharts shims (no-op components)
+  window.Lucide = window.Lucide || (({ name, className, ...props }) => window.React.createElement('span', { className, ...props }, (name === 'loader' || name === 'loader-2') ? '⏳' : '❓'));
   window.LineChart = window.LineChart || (() => null);
   window.Line = window.Line || (() => null);
   window.XAxis = window.XAxis || (() => null);
   window.YAxis = window.YAxis || (() => null);
+}
+ensurePreviewShims();
+
+// Wait for critical CDN scripts to load
+function initializeApp() {
+  console.log('🎯 Initializing React app...');
+
+  ensurePreviewShims();
 
   const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
