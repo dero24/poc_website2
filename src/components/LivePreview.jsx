@@ -46,6 +46,70 @@ const buildLegacyRuntimeScript = (code) => {
 function initializeApp() {
   console.log('🎯 Initializing React app...');
 
+  // Ensure critical globals exist even if CDN failed
+  if (!window.React) {
+    window.React = {
+      createElement: (type, props, ...children) => {
+        if (typeof type === 'function') {
+          return type(props || {}, ...children);
+        }
+        return { type, props: props || {}, children };
+      },
+      useState: (initial) => { let s = initial; const set = (v) => { s = v; }; return [s, set]; },
+      useEffect: () => {},
+      useRef: () => ({ current: null }),
+      useMemo: (fn) => fn(),
+      useCallback: (fn) => fn,
+      forwardRef: (fn) => fn,
+      Fragment: 'fragment',
+      Component: class {
+        constructor(props) {
+          this.props = props || {};
+          this.state = {};
+        }
+        setState(update) {
+          this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state, this.props) : update) };
+        }
+      }
+    };
+  }
+  if (!window.ReactDOM) {
+    window.ReactDOM = {
+      createRoot: (container) => ({
+        render: () => { if (container) container.innerHTML = ''; }
+      })
+    };
+  }
+
+  // Global shims for common libs when not imported
+  if (!window.motion) {
+    window.motion = new Proxy({}, {
+      get(_, tag) {
+        return (props = {}) => {
+          const { children, ...rest } = props;
+          const clean = { ...rest };
+          delete clean.initial;
+          delete clean.animate;
+          delete clean.exit;
+          delete clean.transition;
+          delete clean.variants;
+          delete clean.whileHover;
+          delete clean.whileTap;
+          delete clean.drag;
+          delete clean.dragConstraints;
+          return React.createElement(tag, clean, children);
+        };
+      }
+    });
+  }
+  window.AnimatePresence = window.AnimatePresence || (({ children }) => children || null);
+  window.Lucide = window.Lucide || (({ name, className, ...props }) => React.createElement('span', { className, ...props }, (name === 'loader' || name === 'loader-2') ? '⏳' : '❓'));
+  // Minimal Recharts shims (no-op components)
+  window.LineChart = window.LineChart || (() => null);
+  window.Line = window.Line || (() => null);
+  window.XAxis = window.XAxis || (() => null);
+  window.YAxis = window.YAxis || (() => null);
+
   const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 // Enhanced CDN package resolution with robust fallbacks
@@ -177,7 +241,7 @@ window.require = function(packageName) {
       };
       const icon = icons[name] || '❓';
       return React.createElement('span', { className, ...props }, icon);
-    }
+    },
     'recharts': window.Recharts || {
       LineChart: () => '📊 Line Chart Placeholder',
       BarChart: () => '📊 Bar Chart Placeholder',
@@ -243,6 +307,16 @@ function getMorphicGroqKey() {
   return '';
 }
 window.getMorphicGroqKey = getMorphicGroqKey;
+
+// Bind common globals into local scope so JSX like <motion.div> works reliably
+const motion = window.motion;
+const AnimatePresence = window.AnimatePresence;
+const Lucide = window.Lucide;
+const Recharts = window.Recharts || {};
+const LineChart = window.LineChart || Recharts.LineChart || (() => null);
+const Line = window.Line || Recharts.Line || (() => null);
+const XAxis = window.XAxis || Recharts.XAxis || (() => null);
+const YAxis = window.YAxis || Recharts.YAxis || (() => null);
 
 ${escapeInlineScript(code)}
 
@@ -387,33 +461,27 @@ const buildLegacyDocument = (code) => {
         loadCDNScript('https://unpkg.com/@babel/standalone/babel.min.js', 'babel', 'Babel')
       );
 
-      // Load optional packages
-      window.CDN_LOADING_PROMISES.push(
-        loadCDNScript('https://unpkg.com/framer-motion@11/dist/framer-motion.js', 'framer-motion', 'FramerMotion')
-      );
-      window.CDN_LOADING_PROMISES.push(
-        loadCDNScript('https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js', 'lucide-react', 'LucideReact')
-      );
-      window.CDN_LOADING_PROMISES.push(
-        loadCDNScript('https://unpkg.com/recharts@2.8.0/umd/Recharts.js', 'recharts', 'Recharts')
-      );
-      window.CDN_LOADING_PROMISES.push(
-        loadCDNScript('https://unpkg.com/axios@1.5.0/dist/axios.min.js', 'axios', 'axios')
-      );
-      window.CDN_LOADING_PROMISES.push(
-        loadCDNScript('https://unpkg.com/marked@9.1.2/marked.min.js', 'marked', 'marked')
-      );
+      // Optional packages will load after critical scripts
 
       // Load TailwindCSS
       window.CDN_LOADING_PROMISES.push(
         loadCDNScript('https://cdn.tailwindcss.com', 'tailwindcss', 'tailwindcss')
       );
 
-      // Wait for critical scripts, then initialize
+      // Wait for critical scripts, then initialize and load optional packages safely
       Promise.all(window.CDN_LOADING_PROMISES.slice(0, 3)).then(() => {
         console.log('🚀 Critical CDN scripts loaded, initializing app...');
+
+        // Load optional scripts only after React is present
+        if (window.React) {
+          loadCDNScript('https://unpkg.com/framer-motion@11/dist/framer-motion.js', 'framer-motion', 'FramerMotion');
+          loadCDNScript('https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js', 'lucide-react', 'LucideReact');
+          loadCDNScript('https://unpkg.com/recharts@2.8.0/umd/Recharts.js', 'recharts', 'Recharts');
+          loadCDNScript('https://unpkg.com/axios@1.5.0/dist/axios.min.js', 'axios', 'axios');
+          loadCDNScript('https://unpkg.com/marked@9.1.2/marked.min.js', 'marked', 'marked');
+        }
+
         window.CDN_READY = true;
-        // Trigger app initialization
         if (window.initializeApp) {
           window.initializeApp();
         }
