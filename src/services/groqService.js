@@ -1,5 +1,6 @@
 // Groq API service for code generation
 import { buildPreviewManifestPrompt } from '../prompts/previewManifestPrompts.js';
+import { UNIFIED_SYSTEM_PROMPT, buildUnifiedPrompt, buildGuardrailRules } from '../prompts/templates.js';
 
 const FALLBACK_MODELS = [
   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B · General Purpose' },
@@ -155,10 +156,16 @@ class GroqService {
     return this.modelCache;
   }
 
-  async generateCode(prompt, model = 'llama-3.1-70b-versatile') {
+  async generateCode(prompt, model = 'llama-3.1-70b-versatile', options = {}) {
     if (!this.apiKey) {
       throw new Error('Groq API key not configured');
     }
+
+    const {
+      systemPrompt = UNIFIED_SYSTEM_PROMPT,
+      temperature = 0.3,
+      maxTokens = 4000
+    } = options || {};
 
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -168,19 +175,19 @@ class GroqService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: model,
+          model,
           messages: [
             {
               role: 'system',
-              content: 'You are an elite React developer. Output ONLY working React JSX code. No explanations, no markdown, no comments outside the code. The code must be immediately executable in a browser.'
+              content: systemPrompt || 'You are an elite React developer. Output ONLY working React JSX code. No explanations, no markdown, no comments outside the code. The code must be immediately executable in a browser.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.3,
-          max_tokens: 4000,
+          temperature,
+          max_tokens: maxTokens,
           stream: false
         })
       });
@@ -259,6 +266,48 @@ class GroqService {
     const jsxPattern = /<\w+[\s>]/;
 
     return componentPattern.test(code) || jsxPattern.test(code);
+  }
+
+  async generateApplication({
+    appIdea,
+    modelId = 'llama-3.1-70b-versatile',
+    includeAI = true,
+    context = {}
+  }) {
+    if (!appIdea?.trim()) {
+      throw new Error('App idea is required to generate an application');
+    }
+
+    const {
+      persona,
+      desiredMood,
+      aiExpectations,
+      guardrails: guardrailOverrides,
+      temperature,
+      maxTokens
+    } = context || {};
+
+    const guardrails = buildGuardrailRules({
+      appIdea,
+      ...(guardrailOverrides || {})
+    });
+
+    const prompt = buildUnifiedPrompt(appIdea, {
+      persona,
+      desiredMood,
+      aiExpectations,
+      guardrails,
+      includeAI,
+      modelId
+    });
+
+    const code = await this.generateCode(prompt, modelId, {
+      systemPrompt: UNIFIED_SYSTEM_PROMPT,
+      temperature: typeof temperature === 'number' ? temperature : 0.3,
+      maxTokens: typeof maxTokens === 'number' ? maxTokens : 4000
+    });
+
+    return { code, prompt, guardrails };
   }
 }
 

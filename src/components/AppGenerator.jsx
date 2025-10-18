@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Wand2, Zap } from 'lucide-react';
-import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
+import { FALLBACK_CODE } from '../prompts/templates';
 import groqService from '../services/groqService';
 
 const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey }) => {
@@ -46,14 +46,12 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
     setError('');
 
     try {
-      const template = PROMPT_TEMPLATES.base;
-      const prompt = buildPrompt(template.template, appIdea, {
-        apiKey,
-        modelId: selectedModel
+      const { code: generatedCode, prompt, guardrails } = await groqService.generateApplication({
+        appIdea,
+        modelId: selectedModel,
+        includeAI: true
       });
 
-      const generatedCode = await groqService.generateCode(prompt, selectedModel);
-      
       if (!groqService.validateCode(generatedCode)) {
         throw new Error('Generated code failed validation');
       }
@@ -62,11 +60,12 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
         id: Date.now().toString(),
         appIdea,
         model: selectedModel,
-        template: 'base',
+        template: 'unified',
         code: generatedCode,
         prompt,
         timestamp: Date.now(),
-        isWorking: true
+        isWorking: true,
+        guardrails
       };
 
       onAppGenerated(appData);
@@ -83,7 +82,8 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
         code: FALLBACK_CODE,
         prompt: 'Fallback due to generation error',
         timestamp: Date.now(),
-        isWorking: false
+        isWorking: false,
+        guardrails: null
       };
       
       onAppGenerated(fallbackApp);

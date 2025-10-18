@@ -16,7 +16,8 @@ class VersionService {
       template: appData.template,
       code: appData.code,
       prompt: appData.prompt,
-      isWorking: appData.isWorking ?? true
+      isWorking: appData.isWorking ?? true,
+      guardrails: appData.guardrails || null
     };
 
     versions.unshift(version); // Add to beginning

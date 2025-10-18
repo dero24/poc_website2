@@ -1,119 +1,61 @@
 // Optimized prompt templates for token efficiency
-export const PROMPT_TEMPLATES = {
-  base: {
-    name: "Basic App",
-    template: `Create a React app: {APP_IDEA}
+export const UNIFIED_SYSTEM_PROMPT = `You are Morphic Web's product strategist and principal React engineer. Translate any idea into a premium, production-ready React 18 single-file application that runs entirely in the browser. Strategize first, then code. Honor Morphic guardrails for accessibility, security, and aesthetics. Output ONLY clean React code—no markdown, no commentary, no placeholders.`;
 
-STRICT RULES:
-- Use React hooks, no class components
-- Include all imports at top
-- Make it responsive and beautiful
-- Single functional component export
-- Browser-compatible
-- Output ONLY working React JSX code (no markdown or commentary).
-- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
-- Never prompt the user for API keys. The environment already supplies one.
-- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
-- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
-- Do not expose or log the API key.
-- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
-- For AI chatbots, ensure proper error handling and loading states for API calls.
-{AI_FEATURES}
+export function buildGuardrailRules(options = {}) {
+  const {
+    appIdea = '',
+    tone = ['futuristic', 'glassmorphic', 'elevated'],
+    accessibility = ['WCAG AA contrast', 'motion-safe fallbacks'],
+    cdnPackages = ['tailwindcss', 'framer-motion', 'lucide-react', 'recharts', 'axios', 'marked'],
+    aiPrinciples = ['AI must deliver purposeful automation', 'Do not prompt users for API keys', 'Render AI responses in Markdown']
+  } = options;
 
-Return complete working code:`
-  },
+  return {
+    appIdea,
+    tone,
+    accessibility,
+    cdnPackages,
+    aiPrinciples,
+    markdownRenderer: 'marked via CDN or react-markdown',
+    stylingExpectations: 'Layered gradients, glassmorphism, multi-level depth, micro-interactions, responsive grid design',
+    security: ['Sanitize user input', 'Never leak GROQ_API_KEY', 'Validate external content before rendering']
+  };
+}
 
-  aiChat: {
-    name: "AI Chat App",
-    template: `Create React chat app: {APP_IDEA}
+function stringify(value) {
+  return JSON.stringify(value, null, 2);
+}
 
-REQUIREMENTS:
-- Working React JSX only
-- Use useState, useEffect hooks
-- Groq API integration with key: {API_KEY}
-- Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
-- Mobile responsive
-{AI_FEATURES}
+export function buildUnifiedPrompt(appIdea, context = {}) {
+  const guardrails = buildGuardrailRules(context.guardrails || {});
+  const payload = {
+    appIdea,
+    persona: context.persona || 'Polished creative professional',
+    desiredMood: context.desiredMood || guardrails.tone,
+    aiExpectations: context.aiExpectations || ['Automation beyond chat', 'Context-aware recommendations', 'Markdown-capable responses when useful'],
+    requestedModel: context.modelId || null,
+    includeAI: context.includeAI !== false,
+    guardrails
+  };
 
-API endpoint available: /api/groq/chat
-Return complete code:`
-  },
+  const contextJson = stringify(payload);
 
-  dashboard: {
-    name: "Dashboard App", 
-    template: `Create React dashboard: {APP_IDEA}
+  return `APP IDEA:
+${appIdea}
 
-SPECS:
-- Modern dashboard layout
-- Charts/graphs if needed
-- Sidebar navigation
-- Responsive grid system
-- Tailwind CSS + Lucide icons
-- Working React hooks
-- No external data calls
-{AI_FEATURES}
+MORPHIC CONTEXT:
+${contextJson}
 
-Output working JSX:`
-  },
-
-  game: {
-    name: "Interactive Game",
-    template: `Create React game: {APP_IDEA}
-
-GAME RULES:
-- Interactive gameplay
-- Score tracking
-- Game state management
-- Keyboard/mouse controls
-- Animated elements
-- Tailwind CSS styling
-- React hooks only
-{AI_FEATURES}
-
-Return playable code:`
-  },
-
-  utility: {
-    name: "Utility Tool",
-    template: `Create React utility: {APP_IDEA}
-
-UTILITY SPECS:
-- Functional tool interface
-- Input/output handling
-- Real-time calculations
-- Clean, minimal design
-- Form validation
-- Tailwind CSS
-- React hooks
-{AI_FEATURES}
-
-Output working tool:`
-  }
-};
-
-export const AI_FEATURES_INJECTION = `
-GROQ USAGE NOTES:
-- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
-- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
-- Send the selected model '{MODEL_ID}' alongside any messages payload.
-- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
-- Never request or display the API key to the user.
-- Example fetch call:
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${GROQ_API_KEY}\`
-    },
-    body: JSON.stringify({
-      model: '{MODEL_ID}',
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.7
-    })
-  });
-`;
+DELIVERABLE REQUIREMENTS:
+- Output a single, production-ready React 18 component file that runs entirely in the browser.
+- Import only browser-safe globals (React, ReactDOM) from UMD/CDN bundles. Avoid bare module specifiers and ESM-only CDNs like esm.sh or skypack.
+- Do not include commented planning, markdown sections, or blueprint prose—only executable code.
+- Use Tailwind utility classes (assuming stylesheet already included) to craft gradients, glassmorphism, and responsive layouts with WCAG AA contrast.
+- Use approved browser-friendly libraries (framer-motion, lucide-react, react-icons, recharts, axios, marked) only when they improve the experience and ensure they reference global objects when executed in the browser.
+- Provide optimistic loading, error, and empty states for data/AI flows. Sanitize user inputs and never expose raw API keys.
+- For Groq usage, set \`const GROQ_API_KEY = window.getMorphicGroqKey ? window.getMorphicGroqKey() : (window.__MORPHIC_GROQ_KEY__ || '[[GROQ_API_KEY]]');\` and call fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: \`Bearer ${GROQ_API_KEY}\` }, body: JSON.stringify(...) }). Never request keys from users and never log them.
+- Export a default React component at the end of the file. No TODOs, no explanatory text, no markdown fences.`;
+}
 
 export const FALLBACK_CODE = `
 import React, { useState } from 'react';
@@ -138,21 +80,3 @@ export default function FallbackApp() {
   );
 }
 `;
-
-export function buildPrompt(template, appIdea, options = {}) {
-  const normalized = typeof options === 'boolean'
-    ? { includeAI: options }
-    : (options ?? {});
-
-  const {
-    apiKey = '',
-    modelId = '',
-    includeAI = true
-  } = normalized;
-
-  let prompt = template.replace('{APP_IDEA}', appIdea);
-  prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
-  prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
-  prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
-  return prompt;
-}

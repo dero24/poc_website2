@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from './lib/react.js';
 import groqService from './services/groqService.js';
 import versionService from './services/versionService.js';
-import {
-  PROMPT_TEMPLATES,
-  buildPrompt,
-  FALLBACK_CODE
-} from './prompts/templates.js';
+import { FALLBACK_CODE } from './prompts/templates.js';
 import { buildPreviewHTML } from './lib/previewRuntime.js';
 
 const h = React.createElement;
@@ -24,7 +20,6 @@ function App() {
   const [apiKey, setApiKey] = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
   const [appIdea, setAppIdea] = useState('');
-  const templateKey = 'base';
   const [modelKey, setModelKey] = useState('llama-3.1-70b-versatile');
   const [modelOptions, setModelOptions] = useState(groqService.getAvailableModels());
   const includeAI = true;
@@ -42,8 +37,16 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      if (typeof window !== 'undefined') {
+        window.__MORPHIC_GROQ_KEY__ = storedKey;
+        window.GROQ_API_KEY = storedKey;
+      }
     } else {
       setShowApiModal(true);
+      if (typeof window !== 'undefined') {
+        delete window.__MORPHIC_GROQ_KEY__;
+        delete window.GROQ_API_KEY;
+      }
     }
 
     const currentApp = versionService.getCurrentApp();
@@ -78,6 +81,10 @@ function App() {
     groqService.setApiKey(trimmed);
     setApiKey(trimmed);
     setShowApiModal(false);
+    if (typeof window !== 'undefined') {
+      window.__MORPHIC_GROQ_KEY__ = trimmed;
+      window.GROQ_API_KEY = trimmed;
+    }
     groqService.refreshModels().then((list) => {
       setModelOptions(list);
       const existing = list.find((entry) => entry.id === modelKey);
@@ -98,27 +105,30 @@ function App() {
       return;
     }
 
-    const template = PROMPT_TEMPLATES[templateKey];
-    const prompt = buildPrompt(template.template, appIdea, {
-      apiKey,
-      modelId: modelKey,
-      includeAI
-    });
-
     setIsGenerating(true);
     setErrorMessage('');
 
     try {
-      const generatedCode = await groqService.generateCode(prompt, modelKey);
+      const { code: generatedCode, prompt, guardrails } = await groqService.generateApplication({
+        appIdea,
+        modelId: modelKey,
+        includeAI
+      });
+
+      if (!groqService.validateCode(generatedCode)) {
+        throw new Error('Generated code failed validation');
+      }
+
       const appData = {
         id: Date.now().toString(),
         appIdea,
         model: modelKey,
-        template: 'base',
+        template: 'unified',
         code: generatedCode,
         prompt,
         timestamp: Date.now(),
-        isWorking: true
+        isWorking: true,
+        guardrails
       };
 
       setGeneratedApp(appData);
@@ -136,6 +146,10 @@ function App() {
         groqService.setApiKey(null);
         setApiKey('');
         setShowApiModal(true);
+        if (typeof window !== 'undefined') {
+          delete window.__MORPHIC_GROQ_KEY__;
+          delete window.GROQ_API_KEY;
+        }
         setGeneratedApp(null);
         setActiveView('generate');
         return;
@@ -149,7 +163,8 @@ function App() {
         code: FALLBACK_CODE,
         prompt: 'Fallback shell because generation failed.',
         timestamp: Date.now(),
-        isWorking: false
+        isWorking: false,
+        guardrails: null
       };
       setGeneratedApp(fallbackApp);
       setActiveView('preview');

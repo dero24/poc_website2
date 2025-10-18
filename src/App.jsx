@@ -21,8 +21,16 @@ function App() {
     if (storedKey) {
       setApiKey(storedKey);
       groqService.setApiKey(storedKey);
+      if (typeof window !== 'undefined') {
+        window.__MORPHIC_GROQ_KEY__ = storedKey;
+        window.GROQ_API_KEY = storedKey;
+      }
     } else {
       setShowApiModal(true);
+      if (typeof window !== 'undefined') {
+        delete window.__MORPHIC_GROQ_KEY__;
+        delete window.GROQ_API_KEY;
+      }
     }
 
     // Load current app if exists
@@ -38,6 +46,10 @@ function App() {
     groqService.setApiKey(key);
     localStorage.setItem('groq-api-key', key);
     setShowApiModal(false);
+    if (typeof window !== 'undefined') {
+      window.__MORPHIC_GROQ_KEY__ = key;
+      window.GROQ_API_KEY = key;
+    }
   };
 
   const handleAppGenerated = (appData) => {
