@@ -1,4 +1,5 @@
 // Groq API service for code generation
+import { buildPreviewManifestPrompt } from '../prompts/previewManifestPrompts.js';
 
 const FALLBACK_MODELS = [
   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B · General Purpose' },
@@ -22,6 +23,75 @@ class GroqService {
     this.apiKey = null;
     this.baseUrl = 'https://api.groq.com/openai/v1';
     this.modelCache = FALLBACK_MODELS;
+  }
+
+  async generatePreviewManifestStrict(code, model = 'llama-3.1-70b-versatile') {
+    if (!this.apiKey) {
+      throw new Error('Groq API key not configured');
+    }
+
+    const prompt = buildPreviewManifestPrompt(code || '');
+
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: 'You output STRICT JSON only. No prose, no markdown. JSON must parse with JSON.parse() without modifications.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0,
+          max_tokens: 800,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        let details = '';
+        try {
+          const error = await response.json();
+          details = error?.error?.message || error?.message || '';
+        } catch (jsonError) {
+          details = response.statusText;
+        }
+        throw new Error(`Groq API error (${response.status}): ${details || 'Unexpected response'}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) throw new Error('No manifest content returned');
+
+      // Expect strict JSON. Attempt direct parse; otherwise try to salvage first {...} block.
+      let manifest = null;
+      try {
+        manifest = JSON.parse(content);
+      } catch (_) {
+        const start = content.indexOf('{');
+        const end = content.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          const slice = content.slice(start, end + 1);
+          manifest = JSON.parse(slice);
+        } else {
+          throw new Error('Manifest was not valid JSON');
+        }
+      }
+
+      // Basic shape validation
+      if (manifest && typeof manifest === 'object') {
+        if (!Array.isArray(manifest.scripts)) manifest.scripts = [];
+        if (typeof manifest.bindings !== 'string') manifest.bindings = '';
+        return manifest;
+      }
+      throw new Error('Invalid manifest structure');
+    } catch (error) {
+      console.error('Groq preview manifest error:', error);
+      throw error;
+    }
   }
 
   setApiKey(apiKey) {

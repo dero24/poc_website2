@@ -41,8 +41,8 @@ function App() {
   };
 
   const handleAppGenerated = (appData) => {
-    setGeneratedApp(appData);
-    versionService.saveVersion(appData);
+    const saved = versionService.saveVersion(appData);
+    setGeneratedApp(saved);
     setCurrentView('preview');
   };
 

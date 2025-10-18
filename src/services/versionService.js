@@ -72,6 +72,25 @@ class VersionService {
     localStorage.removeItem(this.currentAppKey);
   }
 
+  updateVersion(id, patch = {}) {
+    try {
+      const versions = this.getAllVersions();
+      const idx = versions.findIndex(v => v.id === id);
+      if (idx === -1) return null;
+      const updated = { ...versions[idx], ...(patch || {}) };
+      versions[idx] = updated;
+      localStorage.setItem(this.storageKey, JSON.stringify(versions));
+      const current = this.getCurrentApp();
+      if (current && current.id === id) {
+        this.setCurrentApp(updated);
+      }
+      return updated;
+    } catch (error) {
+      console.error('updateVersion error:', error);
+      return null;
+    }
+  }
+
   exportVersion(id) {
     const version = this.getVersion(id);
     if (!version) return null;

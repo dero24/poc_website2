@@ -6,6 +6,7 @@ import {
   buildPrompt,
   FALLBACK_CODE
 } from './prompts/templates.js';
+import { buildPreviewHTML } from './lib/previewRuntime.js';
 
 const h = React.createElement;
 
@@ -499,93 +500,8 @@ function LoadingOverlay() {
 }
 
 function createPreviewDocument(code) {
-  const base64 = btoa(unescape(encodeURIComponent(code)));
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Morphic Web Preview</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
-  <style>
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; }
-    .fallback-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:3rem; text-align:center; gap:1rem; }
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module">
-    const raw = decodeURIComponent(escape(window.atob('${base64}')));
-    const transformed = Babel.transform(raw, {
-      presets: [
-        ['env', { modules: 'commonjs' }],
-        'react'
-      ],
-      sourceType: 'module'
-    }).code;
-
-    const moduleMap = {
-      react: React,
-      'react-dom': ReactDOM,
-      'react-dom/client': ReactDOM,
-      'react/jsx-runtime': React,
-      axios: window.axios,
-      'axios/index': window.axios,
-      'axios/default': window.axios,
-      'react-router-dom': window.ReactRouterDOM,
-      'react-router-dom/client': window.ReactRouterDOM,
-      'react-router-dom/server': window.ReactRouterDOM,
-      'react-router': window.ReactRouterDOM
-    };
-
-    const require = (name) => {
-      if (name.endsWith('.css')) {
-        return {};
-      }
-
-      if (name.startsWith('tailwindcss')) {
-        return {};
-      }
-
-      if (moduleMap[name]) {
-        return moduleMap[name];
-      }
-
-      const trimmed = name.replace(/\.js$/i, '');
-      if (moduleMap[trimmed]) {
-        return moduleMap[trimmed];
-      }
-
-      throw new Error('Unsupported import in preview: ' + name);
-    };
-
-    const exports = {};
-    const module = { exports };
-
-    try {
-      const fn = new Function('exports', 'module', 'require', 'React', 'ReactDOM', transformed);
-      fn(exports, module, require, React, ReactDOM);
-    } catch (error) {
-      console.error('Preview execution error', error);
-      window.__morphic_error = error;
-    }
-
-    const candidate = module.exports?.default || exports.default || window.App || window.GeneratedApp;
-    const RootComponent = candidate || (() => React.createElement('div', { className: 'fallback-shell' }, [
-      React.createElement('div', { key: 'emoji', style: { fontSize: '3rem' } }, '⚠️'),
-      React.createElement('div', { key: 'message' }, window.__morphic_error ? window.__morphic_error.message : 'No component exported from generated code.')
-    ]));
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(RootComponent));
-  </script>
-</body>
-</html>`;
+  // Delegate to shared dynamic preview runtime
+  return buildPreviewHTML(code);
 }
 
 export default App;

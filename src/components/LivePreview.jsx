@@ -1,107 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RefreshCw, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Play, RefreshCw, ExternalLink, AlertTriangle, CheckCircle, Wand2 } from 'lucide-react';
+import { buildPreviewHTML } from '../lib/previewRuntime.js';
+import groqService from '../services/groqService';
+import versionService from '../services/versionService';
 
 const LivePreview = ({ app }) => {
   const [previewError, setPreviewError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFixing, setIsFixing] = useState(false);
+  const [manifest, setManifest] = useState(() => app?.previewManifest || null);
   const iframeRef = useRef(null);
 
-  const createPreviewHTML = (code) => {
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated App Preview</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
-        .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; }
-        .error-title { color: #c53030; font-weight: bold; margin-bottom: 10px; }
-        .error-message { color: #744210; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
-        
-        // Error Boundary Component
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false, error: null };
-            }
-            
-            static getDerivedStateFromError(error) {
-                return { hasError: true, error };
-            }
-            
-            componentDidCatch(error, errorInfo) {
-                console.error('Preview Error:', error, errorInfo);
-            }
-            
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="error-boundary">
-                            <div className="error-title">⚠️ Preview Error</div>
-                            <div className="error-message">
-                                {this.state.error?.message || 'Something went wrong in the preview'}
-                            </div>
-                        </div>
-                    );
-                }
-                
-                return this.props.children;
-            }
-        }
-        
-        // Generated App Code
-        ${code}
-        
-        // Render the app
-        try {
-            const AppComponent = typeof App !== 'undefined' ? App : 
-                               typeof GeneratedApp !== 'undefined' ? GeneratedApp :
-                               function DefaultApp() {
-                                   return React.createElement('div', {
-                                       className: 'p-8 text-center'
-                                   }, 'App component not found');
-                               };
-            
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(
-                React.createElement(ErrorBoundary, null,
-                    React.createElement(AppComponent)
-                )
-            );
-            
-            // Signal successful load
-            window.parent.postMessage({ type: 'preview-loaded', success: true }, '*');
-        } catch (error) {
-            console.error('Render error:', error);
-            window.parent.postMessage({ 
-                type: 'preview-error', 
-                error: error.message 
-            }, '*');
-        }
-    </script>
-</body>
-</html>`;
-  };
+  const createPreviewHTML = (code) => buildPreviewHTML(code, { manifest });
 
   useEffect(() => {
     if (!app?.code) return;
-
     setIsLoading(true);
     setPreviewError(null);
-
     const handleMessage = (event) => {
       if (event.data.type === 'preview-loaded') {
         setIsLoading(false);
@@ -111,20 +26,16 @@ const LivePreview = ({ app }) => {
         setPreviewError(event.data.error);
       }
     };
-
     window.addEventListener('message', handleMessage);
-
-    // Load the preview
     const iframe = iframeRef.current;
     if (iframe) {
       const htmlContent = createPreviewHTML(app.code);
       iframe.srcdoc = htmlContent;
     }
-
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [app?.code]);
+  }, [app?.code, manifest]);
 
   const refreshPreview = () => {
     if (iframeRef.current && app?.code) {
@@ -132,6 +43,29 @@ const LivePreview = ({ app }) => {
       setPreviewError(null);
       const htmlContent = createPreviewHTML(app.code);
       iframeRef.current.srcdoc = htmlContent;
+    }
+  };
+
+  const fixPreviewWithAI = async () => {
+    if (!app?.code || isFixing) return;
+    setIsFixing(true);
+    try {
+      const result = await groqService.generatePreviewManifestStrict(app.code);
+      if (result && typeof result === 'object') {
+        setManifest(result);
+        if (app?.id) {
+          const updated = await versionService.updateVersion(app.id, { previewManifest: result });
+          if (updated) {
+            versionService.setCurrentApp(updated);
+          }
+        }
+        refreshPreview();
+      }
+    } catch (err) {
+      console.error('AI preview manifest error:', err);
+      setPreviewError(err?.message || 'AI repair failed');
+    } finally {
+      setIsFixing(false);
     }
   };
 
@@ -190,6 +124,14 @@ const LivePreview = ({ app }) => {
           >
             <RefreshCw className="w-4 h-4" />
             <span>Refresh</span>
+          </button>
+          <button
+            onClick={fixPreviewWithAI}
+            disabled={isFixing}
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-800 text-white rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <Wand2 className={`w-4 h-4 ${isFixing ? 'animate-spin' : ''}`} />
+            <span>{isFixing ? 'Fixing…' : 'Fix Preview (AI)'}</span>
           </button>
           
           <button
