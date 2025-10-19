@@ -90,6 +90,8 @@ function defaultBindings() {
     "if (window.ReactIcons && typeof window.ReactIcons === 'object') { Object.keys(window.ReactIcons).forEach((key) => { ensureIcon(key, window.ReactIcons); }); }\n" +
     "['FiSearch','FiTasklist','FiCalendar','FiSun','FiMoon','FiCheckCircle','FiClock','FiChevronDown','FiArrowRight','FiPlay','FiPause','FiLoader','FiList','FiRefreshCw','FiMusic','AiOutlineSearch','AiOutlineHeart','AiFillStar','AiOutlineCheckCircle','AiOutlineCalendar','AiOutlineCompass','AiOutlineDashboard','AiOutlineTeam','AiOutlineSmile','AiOutlineThunderbolt','AiOutlineAppstore','AiOutlinePlayCircle','AiOutlinePauseCircle','AiOutlineMessage','AiOutlineMail','AiOutlineHome','AiOutlineUser'].forEach((iconName) => { ensureIcon(iconName, window.ReactIcons || null); });\n" +
     "window.getMorphicGroqKey = window.getMorphicGroqKey || (() => window.__MORPHIC_GROQ_KEY__ || window.GROQ_API_KEY || '');\n" +
+    "if (typeof window.groqKey === 'undefined' || !window.groqKey) { window.groqKey = (typeof window.getMorphicGroqKey === 'function' ? window.getMorphicGroqKey() : (window.GROQ_API_KEY || window.__MORPHIC_GROQ_KEY__ || '')); }\n" +
+    "const groqKey = window.groqKey;\n" +
     "window.lucide = window.lucide || new Proxy({}, { get: (_, n) => ensureIcon(String(n), window.LucideReact || null) });\n"
   );
 }
@@ -200,6 +202,7 @@ function installFallbacks() {
     return el('span', { className, ...rest }, name || 'icon');
   };
   window.LucideReact ||= window.Lucide;
+  window.lucideReact ||= window.LucideReact || window.Lucide;
   // lucide core fallback for non-React usage patterns
   window.lucide ||= {
     icons: new Proxy({}, { get: () => ({}) }),
