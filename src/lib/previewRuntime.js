@@ -170,12 +170,12 @@ export function buildPreviewHTML(code, options = {}) {
     // Minimal validation: ensure importmap/module shape
     const hasImportmap = /<script\s+type=\"importmap\"/i.test(raw);
     // Build minimal HTML shell and insert the fragment into the body. Keep any <script src=> lines the fragment provides.
-    return `<!DOCTYPE html><html><head>
+  return `<!DOCTYPE html><html><head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Generated App Preview</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https:; style-src 'self' https:; connect-src 'self' https:; frame-ancestors 'none';">
-<style>html, body { height:100%; } body{ margin:0; font-family: -apple-system,BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#0b1020; color:#e2e8f0; }</style>
+<style>html, body { height:100%; } body{ margin:0; font-family: -apple-system,BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#ffffff; color:#0f172a; }</style>
 </head><body>
 ${raw}
 <script>
@@ -239,8 +239,8 @@ ${scripts.map((s) => `<script src="${s.url}" crossorigin="anonymous"></script>`)
 <script>(${installFallbacks.toString()})()</script>
 <style>
   html, body { height:100%; }
-  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #0b1020; color: #e2e8f0; }
-  .error-boundary { padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin: 20px; color:#7c2d12; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #ffffff; color: #0f172a; }
+  .error-boundary { padding: 20px; background: #fff5f5; border: 1px solid #fca5a5; border-radius: 8px; margin: 20px; color:#7c2d12; }
 </style>
 </head><body>
 <div id="root"></div>

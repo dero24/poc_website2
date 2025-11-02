@@ -160,50 +160,53 @@ class GroqService {
       throw new Error('Groq API key not configured');
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const systemMessage = {
+      role: 'system',
+      content: `You are a precise HTML app generator. ALWAYS return a single HTML FRAGMENT only — nothing else. The fragment MUST include: 1) a top-level <div id=\"app\"></div>; 2) optional <script type=\"importmap\"> JSON mapping package names to pinned ESM CDN URLs; 3) exactly one <script type=\"module\"> entry that imports from the importmap (or absolute ESM CDN URLs) and mounts the app into #app. If legacy UMD scripts are required include them as <script src=\"...\"></script> before the module entry and document the global name in a one-line JS comment inside the module entry. Pin all CDN versions. Never include secrets — use the placeholder [[GROQ_API_KEY]] for any API keys. Do NOT include prose, markdown, or explanation. Return only the HTML fragment which must be immediately previewable when inserted into an iframe.`
+    };
+
+    const userMessage = { role: 'user', content: prompt };
+
+    async function doRequest(extraUserNote = '') {
+      const messages = [systemMessage, userMessage];
+      if (extraUserNote) messages.push({ role: 'user', content: extraUserNote });
+
+      const resp = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: `You are a precise HTML app generator. ALWAYS return a single HTML FRAGMENT only — nothing else. The fragment MUST include: 1) a top-level <div id="app"></div>; 2) optional <script type="importmap"> JSON mapping package names to pinned ESM CDN URLs; 3) exactly one <script type="module"> entry that imports from the importmap (or absolute ESM CDN URLs) and mounts the app into #app. If legacy UMD scripts are required include them as <script src="..."></script> before the module entry and document the global name in a one-line JS comment inside the module entry. Pin all CDN versions. Never include secrets — use the placeholder [[GROQ_API_KEY]] for any API keys. Do NOT include prose, markdown, or explanation. Return only the HTML fragment which must be immediately previewable when inserted into an iframe.`
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000,
-          stream: false
-        })
+        body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 4000, stream: false })
       });
 
-      if (!response.ok) {
+      if (!resp.ok) {
         let details = '';
-        try {
-          const error = await response.json();
-          details = error?.error?.message || error?.message || '';
-        } catch (jsonError) {
-          details = response.statusText;
-        }
-        throw new Error(`Groq API error (${response.status}): ${details || 'Unexpected response'}`);
+        try { const j = await resp.json(); details = j?.error?.message || j?.message || ''; } catch (_) { details = resp.statusText; }
+        throw new Error(`Groq API error (${resp.status}): ${details || 'Unexpected response'}`);
       }
 
-      const data = await response.json();
-      const generatedCode = data.choices[0]?.message?.content;
+      const payload = await resp.json();
+      return payload.choices?.[0]?.message?.content;
+    }
 
-      if (!generatedCode) {
-        throw new Error('No code generated from Groq API');
-      }
+    try {
+      // First attempt
+      let generatedCode = await doRequest.call(this, '');
+      if (!generatedCode) throw new Error('No code generated from Groq API');
 
-      return this.sanitizeCode(generatedCode);
+      let cleaned = this.sanitizeCode(generatedCode);
+      if (this.validateCode(cleaned)) return cleaned;
+
+      // Retry once with a short corrective instruction
+      const retryNote = 'Your previous response did not follow the required HTML fragment contract. RETURN ONLY the HTML fragment (no explanations). Ensure the fragment includes <div id="app"></div>, an optional importmap, and a single module entry that mounts into #app.';
+      generatedCode = await doRequest.call(this, retryNote);
+      if (!generatedCode) throw new Error('No code generated from Groq API on retry');
+      cleaned = this.sanitizeCode(generatedCode);
+      if (this.validateCode(cleaned)) return cleaned;
+
+      // If still invalid, return cleaned output to allow fallback handling upstream
+      return cleaned;
     } catch (error) {
       console.error('Groq generation error:', error);
       throw error;
