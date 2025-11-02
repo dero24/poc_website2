@@ -1,125 +1,36 @@
-// Optimized prompt templates for token efficiency
-export const PROMPT_TEMPLATES = {
-  base: {
-    name: "Basic App",
-    template: `Create a React app: {APP_IDEA}
+// Dynamic prompt builder: produce a single masterful prompt that instructs Groq to return
+// a preview-ready HTML fragment following the ESM+CDN importmap+module contract.
+export function buildDynamicPrompt(appIdea, options = {}) {
+  const {
+    apiKey = '',
+    modelId = 'groq-model',
+    includeAI = true,
+    preferredLib = 'preact',
+    uiStyle = 'clean'
+  } = options || {};
 
-STRICT RULES:
-- Use React hooks, no class components
-- Include all imports at top
-- Make it responsive and beautiful
-- Single functional component export
-- Browser-compatible
-- Output ONLY working React JSX code (no markdown or commentary).
-- Provide complete state, handlers, and sample data so the app runs instantly in the browser.
-- Never prompt the user for API keys. The environment already supplies one.
-- If AI features are needed, declare const GROQ_API_KEY = '{API_KEY}' once and reuse it.
-- When the experience requires AI, call Groq's REST API with model '{MODEL_ID}' using the authorization header Bearer \${GROQ_API_KEY}.
-- Do not expose or log the API key.
-- Automatically include AI capabilities when the app idea suggests it (chatbots, recommendations, analysis, etc.).
-- For AI chatbots, ensure proper error handling and loading states for API calls.
-{AI_FEATURES}
+  const GROQ_KEY_PLACEHOLDER = apiKey ? apiKey : '[[GROQ_API_KEY]]';
 
-Return complete working code:`
-  },
+  const contract = `CONTRACT:\n- Return ONLY a single HTML FRAGMENT (no prose, no markdown).\n- Fragment MUST include a top-level <div id=\"app\"></div>, an optional <script type=\"importmap\"> block, and exactly one <script type=\"module\"> entry that mounts into #app.\n- If UMD/global libs are needed, include <script src=\"...\"></script> before the module entry and comment the global name inside the module entry.\n- Pin all CDN versions and avoid floating tags.\n- Do not include secrets; use ${GROQ_KEY_PLACEHOLDER} as a placeholder for any API keys.\n`;
 
-  aiChat: {
-    name: "AI Chat App",
-    template: `Create React chat app: {APP_IDEA}
+  const uiHints = `UI HINTS:\n- Produce a compact, responsive UI using ${preferredLib} and Tailwind (via CDN) if styling is needed.\n- Deliver accessible controls, loading/error states, and small sample data so the app runs instantly.\n- Keep code under 200 lines when possible. Style preference: ${uiStyle}.\n`;
 
-REQUIREMENTS:
-- Working React JSX only
-- Use useState, useEffect hooks
-- Groq API integration with key: {API_KEY}
-- Chat interface with messages
-- Send/receive functionality
-- Tailwind CSS styling
-- Mobile responsive
-{AI_FEATURES}
+  const aiHints = includeAI
+    ? `AI HINTS:\n- If AI calls are required, call https://api.groq.com/openai/v1/chat/completions and reference the key as ${GROQ_KEY_PLACEHOLDER}.\n- Provide robust loading and error handling for external API calls.\n`
+    : '';
 
-API endpoint available: /api/groq/chat
-Return complete code:`
-  },
+  const idea = `APP IDEA:\n${appIdea}\n`;
 
-  dashboard: {
-    name: "Dashboard App", 
-    template: `Create React dashboard: {APP_IDEA}
+  const example = `EXAMPLE SHAPE:\n<div id=\"app\"></div>\n<script type=\"importmap\">{ "imports": { "preact": "https://cdn.jsdelivr.net/npm/preact@10.16.1/+esm" } }</script>\n<script type=\"module\">/* module entry imports from importmap and mounts into #app */</script>\n`;
 
-SPECS:
-- Modern dashboard layout
-- Charts/graphs if needed
-- Sidebar navigation
-- Responsive grid system
-- Tailwind CSS + Lucide icons
-- Working React hooks
-- No external data calls
-{AI_FEATURES}
-
-Output working JSX:`
-  },
-
-  game: {
-    name: "Interactive Game",
-    template: `Create React game: {APP_IDEA}
-
-GAME RULES:
-- Interactive gameplay
-- Score tracking
-- Game state management
-- Keyboard/mouse controls
-- Animated elements
-- Tailwind CSS styling
-- React hooks only
-{AI_FEATURES}
-
-Return playable code:`
-  },
-
-  utility: {
-    name: "Utility Tool",
-    template: `Create React utility: {APP_IDEA}
-
-UTILITY SPECS:
-- Functional tool interface
-- Input/output handling
-- Real-time calculations
-- Clean, minimal design
-- Form validation
-- Tailwind CSS
-- React hooks
-{AI_FEATURES}
-
-Output working tool:`
-  }
-};
-
-export const AI_FEATURES_INJECTION = `
-GROQ USAGE NOTES:
-- Wire helper functions that call https://api.groq.com/openai/v1/chat/completions.
-- Use fetch with headers { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${GROQ_API_KEY}\` }.
-- Send the selected model '{MODEL_ID}' alongside any messages payload.
-- Guard calls with loading and error states and only invoke them when the user workflow requires AI.
-- Never request or display the API key to the user.
-- Example fetch call:
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': \`Bearer \${GROQ_API_KEY}\`
-    },
-    body: JSON.stringify({
-      model: '{MODEL_ID}',
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.7
-    })
-  });
-`;
+  return [contract, uiHints, aiHints, idea, example].filter(Boolean).join('\n\n');
+}
 
 export const FALLBACK_CODE = `
 import React, { useState } from 'react';
 
 export default function FallbackApp() {
-  const [message, setMessage] = useState('App generation failed - using fallback');
+  const [message] = useState('App generation failed - using fallback');
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -138,21 +49,3 @@ export default function FallbackApp() {
   );
 }
 `;
-
-export function buildPrompt(template, appIdea, options = {}) {
-  const normalized = typeof options === 'boolean'
-    ? { includeAI: options }
-    : (options ?? {});
-
-  const {
-    apiKey = '',
-    modelId = '',
-    includeAI = true
-  } = normalized;
-
-  let prompt = template.replace('{APP_IDEA}', appIdea);
-  prompt = prompt.replace('{API_KEY}', apiKey || '[[GROQ_API_KEY]]');
-  prompt = prompt.replace('{MODEL_ID}', modelId || 'groq-model');
-  prompt = prompt.replace('{AI_FEATURES}', includeAI ? AI_FEATURES_INJECTION : '');
-  return prompt;
-}

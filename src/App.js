@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from './lib/react.js
 import groqService from './services/groqService.js';
 import versionService from './services/versionService.js';
 import {
-  PROMPT_TEMPLATES,
-  buildPrompt,
+  buildDynamicPrompt,
   FALLBACK_CODE
 } from './prompts/templates.js';
 import { buildPreviewHTML } from './lib/previewRuntime.js';
@@ -98,11 +97,13 @@ function App() {
       return;
     }
 
-    const template = PROMPT_TEMPLATES[templateKey];
-    const prompt = buildPrompt(template.template, appIdea, {
+    // Build a dynamic fragment-first prompt for Groq
+    const prompt = buildDynamicPrompt(appIdea, {
       apiKey,
       modelId: modelKey,
-      includeAI
+      includeAI: includeAI,
+      preferredLib: 'preact',
+      uiStyle: 'clean'
     });
 
     setIsGenerating(true);

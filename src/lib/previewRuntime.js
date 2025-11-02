@@ -162,6 +162,47 @@ function installFallbacks() {
 
 export function buildPreviewHTML(code, options = {}) {
   const { manifest } = options;
+  const raw = String(code || '');
+
+  // If the code already looks like a preview-ready HTML fragment (contract), inject it directly
+  const looksLikeFragment = /<div\s+id=\"app\"/i.test(raw) && /<script\s+type=\"module\"/i.test(raw);
+  if (looksLikeFragment) {
+    // Minimal validation: ensure importmap/module shape
+    const hasImportmap = /<script\s+type=\"importmap\"/i.test(raw);
+    // Build minimal HTML shell and insert the fragment into the body. Keep any <script src=> lines the fragment provides.
+    return `<!DOCTYPE html><html><head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generated App Preview</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https:; style-src 'self' https:; connect-src 'self' https:; frame-ancestors 'none';">
+<style>html, body { height:100%; } body{ margin:0; font-family: -apple-system,BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#0b1020; color:#e2e8f0; }</style>
+</head><body>
+${raw}
+<script>
+  (function(){
+    function notifyLoaded(){ window.parent.postMessage({ type:'preview-loaded', success:true }, '*'); }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      // Defer slightly to allow module entry mount
+      setTimeout(notifyLoaded, 250);
+    } else {
+      window.addEventListener('DOMContentLoaded', function(){ setTimeout(notifyLoaded, 250); });
+    }
+    // Safety: timeout to report error if nothing mounts in reasonable time
+    setTimeout(function(){
+      try {
+        const appEl = document.getElementById('app');
+        if (appEl && appEl.children.length === 0) {
+          // no children after mount window
+          // Don't treat as fatal; allow module entry to manage it. If the app posts errors it should post a message.
+        }
+      } catch(e){}
+    }, 3000);
+  })();
+</script>
+</body></html>`;
+  }
+
+  // Fallback: older transform-based rendering (keeps backwards compatibility)
   const detection = detectPackages(code || '');
 
   // Base scripts: Babel, Tailwind, React, ReactDOM

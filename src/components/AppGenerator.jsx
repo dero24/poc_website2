@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Wand2, Zap } from 'lucide-react';
-import { PROMPT_TEMPLATES, buildPrompt, FALLBACK_CODE } from '../prompts/templates';
+import { buildDynamicPrompt, FALLBACK_CODE } from '../prompts/templates';
 import groqService from '../services/groqService';
 
 const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequireApiKey }) => {
@@ -46,10 +46,13 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
     setError('');
 
     try {
-      const template = PROMPT_TEMPLATES.base;
-      const prompt = buildPrompt(template.template, appIdea, {
+      // Build a dynamic prompt that instructs the model to return a preview-ready HTML fragment
+      const prompt = buildDynamicPrompt(appIdea, {
         apiKey,
-        modelId: selectedModel
+        modelId: selectedModel,
+        includeAI: true,
+        preferredLib: 'preact',
+        uiStyle: 'clean'
       });
 
       const generatedCode = await groqService.generateCode(prompt, selectedModel);
@@ -153,9 +156,9 @@ const AppGenerator = ({ onAppGenerated, isGenerating, setIsGenerating, onRequire
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-300">
-            <p className="font-semibold text-white mb-2">AI usage policy</p>
+            <p className="font-semibold text-white mb-2">Generator mode</p>
             <p>
-              Groq decides when AI calls are needed. The API key is injected automatically into generated apps, so you never have to expose it to users.
+              This generator uses an ESM+CDN fragment-first workflow by default. The model will return a preview-ready HTML fragment (importmap + module) that the preview injects directly — no build step required. API keys are never returned; the runtime injects them via placeholders.
             </p>
           </div>
         </div>

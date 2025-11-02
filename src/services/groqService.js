@@ -172,7 +172,7 @@ class GroqService {
           messages: [
             {
               role: 'system',
-              content: 'You are an elite React developer. Output ONLY working React JSX code. No explanations, no markdown, no comments outside the code. The code must be immediately executable in a browser.'
+              content: `You are a precise HTML app generator. ALWAYS return a single HTML FRAGMENT only — nothing else. The fragment MUST include: 1) a top-level <div id="app"></div>; 2) optional <script type="importmap"> JSON mapping package names to pinned ESM CDN URLs; 3) exactly one <script type="module"> entry that imports from the importmap (or absolute ESM CDN URLs) and mounts the app into #app. If legacy UMD scripts are required include them as <script src="..."></script> before the module entry and document the global name in a one-line JS comment inside the module entry. Pin all CDN versions. Never include secrets — use the placeholder [[GROQ_API_KEY]] for any API keys. Do NOT include prose, markdown, or explanation. Return only the HTML fragment which must be immediately previewable when inserted into an iframe.`
             },
             {
               role: 'user',
@@ -211,10 +211,15 @@ class GroqService {
   }
 
   sanitizeCode(code) {
-    // Remove markdown code blocks
+    // Remove markdown code fences
     let cleaned = code.replace(/```jsx?\n?/g, '').replace(/```\n?/g, '');
-    
-    // Remove any explanatory text before/after code
+
+    // If the generator returned an HTML fragment (contains <script> or <div id="app"), return as-is
+    if (/<script\s+type=\"module\"|<script\b|<div\s+id=\"app\"/i.test(cleaned)) {
+      return cleaned.trim();
+    }
+
+    // Otherwise treat as JSX/JS output and try to extract the code block
     const lines = cleaned.split('\n');
     let startIndex = 0;
     let endIndex = lines.length - 1;
@@ -239,7 +244,6 @@ class GroqService {
 
     // Ensure it has a default export
     if (!cleaned.includes('export default')) {
-      // Try to find the main component and add export
       const componentMatch = cleaned.match(/function\s+(\w+)/);
       if (componentMatch) {
         cleaned += `\n\nexport default ${componentMatch[1]};`;
@@ -252,13 +256,19 @@ class GroqService {
   validateCode(code) {
     if (!code) return false;
 
+    // Accept either an HTML fragment (importmap + module + #app) OR classic JSX with export default
+    if (/<div\s+id=\"app\"/i.test(code) && /<script\s+type=\"module\"/i.test(code)) {
+      return true;
+    }
+
     const hasExport = /export\s+default/.test(code);
-    if (!hasExport) return false;
+    if (hasExport) {
+      const componentPattern = /(function\s+\w+\s*\(|const\s+\w+\s*=\s*\(?\s*\w*\s*=>)/;
+      const jsxPattern = /<\w+[\s>]/;
+      return componentPattern.test(code) || jsxPattern.test(code);
+    }
 
-    const componentPattern = /(function\s+\w+\s*\(|const\s+\w+\s*=\s*\(?\s*\w*\s*=>)/;
-    const jsxPattern = /<\w+[\s>]/;
-
-    return componentPattern.test(code) || jsxPattern.test(code);
+    return false;
   }
 }
 
